@@ -1,0 +1,151 @@
+import { createRouter, createWebHistory } from 'vue-router';
+import { getAuth } from 'firebase/auth';
+
+import Vue from 'vue';
+import Router from 'vue-router';
+
+import DashboardLayout from "@/layout/dashboard/DashboardLayout.vue";
+// GeneralViews
+import NotFound from "@/pages/NotFoundPage.vue";
+
+// Admin pages
+import Dashboard from "@/pages/Dashboard.vue";
+import ListadoClientes from "@/pages/ListadoClientes.vue";
+import ListadoCitas from "@/pages/ListadoCitas.vue";
+import Agenda from "@/pages/Agenda.vue";
+import AgendaCitas from "@/pages/AgendaCitas.vue";
+import UserProfile from "@/pages/UserProfile.vue";
+import Login from "@/pages/Login.vue";
+import Notifications from "@/pages/Notifications.vue";
+import Icons from "@/pages/Icons.vue";
+import Maps from "@/pages/Maps.vue";
+import Typography from "@/pages/Typography.vue";
+import TableList from "@/pages/TableList.vue";
+import ListadoServicios from "@/pages/ListadoServicios.vue";
+import ListadoProductos from "@/pages/ListadoProductos.vue";
+import ListadoCategorias from "@/pages/ListadoCategorias.vue";
+import EmpleadosUsuarios from "@/pages/EmpleadosUsuarios.vue";
+import Facturacion from "@/pages/Facturacion.vue";
+import CobrosPagos from "@/pages/CobrosPagos.vue";
+import SeguridadPermisos from "@/pages/SeguridadPermisos.vue";
+
+Vue.use(Router);
+
+const routes = [
+  {
+    path: "/",
+    component: DashboardLayout,
+    redirect: "/listado-clientes",
+    children: [
+      {
+        path: "dashboard",
+        name: "dashboard",
+        component: Dashboard,
+      },
+      {
+        path: "login",
+        name: "login",
+        component: Login,
+      },
+      {
+        path: '/perfil/:id',
+        name: 'UserProfile',
+        component: UserProfile
+      },
+      {
+        path:"listado-clientes",
+        name: "listado-clientes",
+        component: ListadoClientes,
+      },
+      {
+        path:"listado-citas",
+        name: "listado-citas",
+        component: ListadoCitas,
+      },
+      {
+        path:"agenda",
+        name: "agenda",
+        component: Agenda,
+      },
+      {
+        path:"agenda-citas",
+        name: "agenda-citas",
+        component: AgendaCitas,
+      },
+      {
+        path: "listado-servicios",
+        name: "listado-servicios",
+        component: ListadoServicios,
+      },
+      {
+        path: "listado-productos",
+        name: "listado-productos",
+        component: ListadoProductos,
+      },
+      {
+        path: "listado-categorias",
+        name: "listado-categorias",
+        component: ListadoCategorias,
+      },
+      {
+        path: "facturacion",
+        name: "facturacion",
+        component: Facturacion,
+      },
+      {
+        path: "cobros-pagos",
+        name: "cobros-pagos",
+        component: CobrosPagos,
+      },
+      {
+        path: "empleados-usuarios",
+        name: "empleados-usuarios",
+        component: EmpleadosUsuarios,
+      },
+      {
+        path: "seguridad-permisos",
+        name: "seguridad-permisos",
+        component: SeguridadPermisos,
+      },
+    ],
+  },
+  { path: "*", component: NotFound },
+  // { path: "/:catchAll(.*)", component: NotFound }, // Ruta 404
+];
+
+/**
+ * Asynchronously load view (Webpack Lazy loading compatible)
+ * The specified component must be inside the Views folder
+ * @param  {string} name  the filename (basename) of the view to load.
+function view(name) {
+   var res= require('../components/Dashboard/Views/' + name + '.vue');
+   return res;
+};**/
+
+export default routes;
+
+
+
+// const router = new Router({
+//   mode: 'history', // Usa 'history' para el modo de historial en vue-router 3.x
+//   routes,
+// });
+
+// // Guardia de navegación para proteger rutas
+// router.beforeEach((to, from, next) => {
+//   const auth = getAuth();
+//   const user = auth.currentUser;
+//   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+
+//   if (requiresAuth && !user) {
+//     // Si la ruta requiere autenticación y el usuario no está logueado, redirige al login
+//     next({ name: 'Login' });
+//   } else if (!requiresAuth && user && to.name === 'Login') {
+//     // Si el usuario está logueado y quiere acceder a Login, redirigimos al Dashboard
+//     next({ name: 'Dashboard' });
+//   } else {
+//     next(); // Permite continuar con la navegación
+//   }
+// });
+
+// export default router;

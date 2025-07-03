@@ -26,7 +26,8 @@
             <tr>
               <th>Nombre</th>
               <th>Rol</th>
-              <th>Teléfono/Email</th>
+              <th>email</th>
+              <th>Teléfono</th>
               <th>Servicios</th>
               <th>Horario</th>
               <th>Comisión</th>
@@ -38,7 +39,8 @@
             <tr v-for="(item, idx) in items" :key="item.id">
               <td>{{ item.nombre }}</td>
               <td>{{ item.rol }}</td>
-              <td>{{ item.contacto }}</td>
+              <td>{{ item.email }}</td>
+              <td>{{ item.telefono }}</td>
               <td>{{ item.servicios.join(', ') }}</td>
               <td>{{ item.horario }}</td>
               <td>{{ item.comision ? item.comision + '%' : '-' }}</td>
@@ -79,8 +81,12 @@
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label>Teléfono/Email</label>
-                <input v-model="form.contacto" required />
+                <label>email</label>
+                <input v-model="form.email" type="email" required />
+              </div>
+              <div class="form-group">
+                <label>Teléfono</label>
+                <input v-model="form.telefono" type="tel" required />
               </div>
               <div class="form-group">
                 <label>Comisión (%)</label>
@@ -161,57 +167,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { empleadosService } from '@/services/api/queries';
 
-const items = ref([
-  {
-    id: 1,
-    nombre: 'Ana López',
-    rol: 'Administrador',
-    contacto: 'ana@empresa.com',
-    servicios: ['Gestión', 'Supervisión'],
-    horario: 'L-V 9:00-18:00',
-    comision: 0,
-    permisos: ['Acceso total', 'Gestión usuarios'],
-    zonaHoraria: 'Europe/Madrid',
-    horarioDetallado: [
-      { nombre: 'Lunes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
-      { nombre: 'Martes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
-      { nombre: 'Miércoles', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
-      { nombre: 'Jueves', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
-      { nombre: 'Viernes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
-      { nombre: 'Sábado', activo: false, inicio: '', fin: '', descansoInicio: '', descansoFin: '' },
-      { nombre: 'Domingo', activo: false, inicio: '', fin: '', descansoInicio: '', descansoFin: '' }
-    ]
-  },
-  {
-    id: 2,
-    nombre: 'Carlos Ruiz',
-    rol: 'Técnico',
-    contacto: '+34 612 345 678',
-    servicios: ['Reparaciones', 'Instalaciones'],
-    horario: 'L-V 8:00-16:00',
-    comision: 5,
-    permisos: ['Acceso técnico'],
-    zonaHoraria: 'Europe/Madrid',
-    horarioDetallado: [
-      { nombre: 'Lunes', activo: true, inicio: '08:00', fin: '16:00', descansoInicio: '11:00', descansoFin: '12:00' },
-      { nombre: 'Martes', activo: true, inicio: '08:00', fin: '16:00', descansoInicio: '11:00', descansoFin: '12:00' },
-      { nombre: 'Miércoles', activo: true, inicio: '08:00', fin: '16:00', descansoInicio: '11:00', descansoFin: '12:00' },
-      { nombre: 'Jueves', activo: true, inicio: '08:00', fin: '16:00', descansoInicio: '11:00', descansoFin: '12:00' },
-      { nombre: 'Viernes', activo: true, inicio: '08:00', fin: '16:00', descansoInicio: '11:00', descansoFin: '12:00' },
-      { nombre: 'Sábado', activo: false, inicio: '', fin: '', descansoInicio: '', descansoFin: '' },
-      { nombre: 'Domingo', activo: false, inicio: '', fin: '', descansoInicio: '', descansoFin: '' }
-    ]
-  }
-]);
-
+const items = ref([]);
 const showForm = ref(false);
 const form = ref({
-  id: null,
   nombre: '',
   rol: '',
-  contacto: '',
+  email: '',
+  telefono: '',
   servicios: [],
   horario: '',
   comision: null,
@@ -222,21 +187,41 @@ const form = ref({
     { nombre: 'Martes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
     { nombre: 'Miércoles', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
     { nombre: 'Jueves', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
-    { nombre: 'Viernes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' }
+    { nombre: 'Viernes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
+    { nombre: 'Sábado', activo: false, inicio: '', fin: '', descansoInicio: '', descansoFin: '' },
+    { nombre: 'Domingo', activo: false, inicio: '', fin: '', descansoInicio: '', descansoFin: '' }
   ]
 });
 const servicioInput = ref('');
 const permisoInput = ref('');
 
+async function fetchEmpleados() {
+  try {
+    const data = await empleadosService.getAll();
+    items.value = data;
+  } catch (e) {
+    items.value = [];
+  }
+}
+
 function openForm(item = null) {
   if (item) {
-    form.value = { ...item, servicios: [...item.servicios], permisos: [...item.permisos] };
+    form.value = { ...item, servicios: [...item.servicios], permisos: [...item.permisos], horarioDetallado: item.horarioDetallado ? [...item.horarioDetallado] : [
+      { nombre: 'Lunes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
+      { nombre: 'Martes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
+      { nombre: 'Miércoles', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
+      { nombre: 'Jueves', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
+      { nombre: 'Viernes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
+      { nombre: 'Sábado', activo: false, inicio: '', fin: '', descansoInicio: '', descansoFin: '' },
+      { nombre: 'Domingo', activo: false, inicio: '', fin: '', descansoInicio: '', descansoFin: '' }
+    ] };
   } else {
     form.value = {
       id: null,
       nombre: '',
       rol: '',
-      contacto: '',
+      email: '',
+      telefono: '',
       servicios: [],
       horario: '',
       comision: null,
@@ -247,7 +232,9 @@ function openForm(item = null) {
         { nombre: 'Martes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
         { nombre: 'Miércoles', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
         { nombre: 'Jueves', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
-        { nombre: 'Viernes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' }
+        { nombre: 'Viernes', activo: true, inicio: '09:00', fin: '18:00', descansoInicio: '12:00', descansoFin: '13:00' },
+        { nombre: 'Sábado', activo: false, inicio: '', fin: '', descansoInicio: '', descansoFin: '' },
+        { nombre: 'Domingo', activo: false, inicio: '', fin: '', descansoInicio: '', descansoFin: '' }
       ]
     };
   }
@@ -260,22 +247,23 @@ function closeForm() {
   showForm.value = false;
 }
 
-function saveItem() {
+async function saveItem() {
   if (form.value.id) {
     // Editar
-    const idx = items.value.findIndex(i => i.id === form.value.id);
-    if (idx !== -1) items.value[idx] = { ...form.value };
+    await empleadosService.update(form.value.id, { ...form.value });
   } else {
     // Nuevo
-    form.value.id = Date.now();
-    items.value.push({ ...form.value });
+    await empleadosService.create({ ...form.value });
   }
   showForm.value = false;
+  await fetchEmpleados();
 }
 
-function deleteItem(idx) {
-  if (confirm('¿Seguro que quieres eliminar este registro?')) {
-    items.value.splice(idx, 1);
+async function deleteItem(idx) {
+  const empleado = items.value[idx];
+  if (empleado && confirm('¿Seguro que quieres eliminar este registro?')) {
+    await empleadosService.delete(empleado.id);
+    await fetchEmpleados();
   }
 }
 
@@ -297,6 +285,8 @@ function addPermiso() {
 function removePermiso(i) {
   form.value.permisos.splice(i, 1);
 }
+
+onMounted(fetchEmpleados);
 </script>
 
 <style scoped>
@@ -426,8 +416,10 @@ function removePermiso(i) {
   background: white;
   border-radius: 20px;
   padding: 40px 30px;
-  min-width: 350px;
-  max-width: 500px;
+  min-width: 400px;
+  max-width: 650px;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0,0,0,0.15);
 }
 .modal-form h2 {
@@ -442,11 +434,13 @@ function removePermiso(i) {
   display: flex;
   gap: 20px;
   margin-bottom: 18px;
+  flex-wrap: wrap;
 }
 .form-group {
-  flex: 1;
+  flex: 1 1 180px;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .form-group label {
   color: #2c3e50;
@@ -461,6 +455,7 @@ function removePermiso(i) {
   font-size: 14px;
   transition: all 0.3s ease;
   background: white;
+  min-width: 0;
 }
 .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
   outline: none;
@@ -470,7 +465,7 @@ function removePermiso(i) {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   margin-top: 6px;
 }
 .chip {
@@ -483,10 +478,57 @@ function removePermiso(i) {
   align-items: center;
   gap: 4px;
   cursor: pointer;
+  margin-bottom: 2px;
 }
 .chip i {
   font-size: 12px;
   margin-left: 4px;
+}
+.horario-detallado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.dia-horario {
+  background: #f7f7f7;
+  border-radius: 10px;
+  padding: 10px 12px 8px 12px;
+  margin-bottom: 6px;
+  min-width: 180px;
+  flex: 1 1 180px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.dia-header {
+  margin-bottom: 6px;
+}
+.dia-label {
+  font-weight: 600;
+  color: #1b6659;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.horarios-dia {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+.horario-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.horario-input input[type="time"] {
+  min-width: 70px;
+  width: 80px;
+  padding: 4px 6px;
+  font-size: 13px;
 }
 .form-actions {
   display: flex;
@@ -514,6 +556,25 @@ function removePermiso(i) {
 .btn-cancel:hover, .btn-save:hover {
   transform: translateY(-2px);
 }
+@media (max-width: 900px) {
+  .modal-form {
+    min-width: 90vw;
+    max-width: 98vw;
+    padding: 20px 10px;
+  }
+  .form-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .horario-detallado {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .dia-horario {
+    min-width: 0;
+    width: 100%;
+  }
+}
 @media (max-width: 768px) {
   .page-title {
     font-size: 28px;
@@ -527,13 +588,10 @@ function removePermiso(i) {
   .table-section {
     padding: 10px;
   }
-  .form-row {
-    flex-direction: column;
-    gap: 10px;
-  }
   .modal-form {
-    min-width: 90vw;
-    padding: 20px 10px;
+    min-width: 98vw;
+    max-width: 100vw;
+    padding: 10px 2px;
   }
 }
 </style> 

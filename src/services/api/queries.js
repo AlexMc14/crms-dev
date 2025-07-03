@@ -69,6 +69,23 @@ export const serviciosService = {
   delete: (id) => restService.delete(`/servicios/${id}`)
 }
 
+export const empleadosService = {
+  // Obtener todos los clientes
+  getAll: (params = {}) => restService.get('/empleados', params),
+  
+  // Obtener cliente por ID
+  getById: (id) => restService.get(`/empleados/${id}`),
+  
+  // Crear nuevo cliente
+  create: (data) => restService.post('/empleados', data),
+  
+  // Actualizar cliente - ID en la URL
+  update: (id, data) => restService.put(`/empleados/${id}`, data),
+  
+  // Eliminar cliente - ID en la URL
+  delete: (id) => restService.delete(`/empleados/${id}`)
+}
+
 // Servicios para Casos
 export const casosService = {
   // Obtener todos los casos

@@ -1,5 +1,7 @@
 <template>
   <div class="facturacion-container">
+    <b-alert v-if="showSuccess" variant="success" style="position: fixed; width: 100%; top: 0px; z-index: 9999;" show>Factura guardada correctamente</b-alert>
+    
     <!-- Header -->
     <div class="page-header">
       <div class="header-content">
@@ -89,7 +91,7 @@
       <!-- Formulario modal -->
       <div v-if="showForm" class="modal-form-overlay">
         <div class="modal-form">
-          <h2>{{ form.id ? 'Editar' : 'Nueva' }} Factura</h2>
+          <h2>{{ form._id ? 'Editar' : 'Nueva' }} Factura</h2>
           <form @submit.prevent="saveItem">
             <div class="form-row">
               <div class="form-group">
@@ -106,8 +108,8 @@
                 <label>Cliente</label>
                 <select v-model="form.cliente" required>
                   <option value="">Selecciona un cliente</option>
-                  <option v-for="cliente in clientes" :key="cliente.id" :value="cliente.nombre">
-                    {{ cliente.nombre }}
+                  <option v-for="cliente in clientes" :key="cliente._id" :value="`${cliente.nombre} ${cliente.apellidos}`">
+                    {{ cliente.nombre }} {{ cliente.apellidos }}
                   </option>
                 </select>
               </div>
@@ -193,7 +195,7 @@
               <label>Servicio/Producto</label>
               <select v-model="nuevoServicio.nombre" required>
                 <option value="">Selecciona un servicio</option>
-                <option v-for="servicio in serviciosDisponibles" :key="servicio.id" :value="servicio.nombre">
+                <option v-for="servicio in serviciosDisponibles" :key="servicio._id" :value="servicio.nombre">
                   {{ servicio.nombre }} - {{ formatCurrency(servicio.precio) }}
                 </option>
               </select>
@@ -283,66 +285,22 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { facturasService, clientesService, serviciosService } from '@/services/api';
 
-const items = ref([
-  {
-    id: 1,
-    numeroFactura: 'FAC-2024-001',
-    fechaEmision: '2024-01-15',
-    cliente: 'Ana López',
-    servicios: [
-      { id: 1, nombre: 'Consulta Legal', cantidad: 2, precioUnitario: 150.00 },
-      { id: 2, nombre: 'Documentación', cantidad: 1, precioUnitario: 75.00 }
-    ],
-    totalBruto: 375.00,
-    impuestos: 78.75,
-    totalNeto: 453.75,
-    estado: 'pagada',
-    vencimiento: '2024-02-15',
-    pagado: 453.75,
-    pendiente: 0,
-    cobrosVinculados: [1]
-  },
-  {
-    id: 2,
-    numeroFactura: 'FAC-2024-002',
-    fechaEmision: '2024-01-20',
-    cliente: 'Carlos Ruiz',
-    servicios: [
-      { id: 3, nombre: 'Asesoría Técnica', cantidad: 1, precioUnitario: 200.00 }
-    ],
-    totalBruto: 200.00,
-    impuestos: 42.00,
-    totalNeto: 242.00,
-    estado: 'parcial',
-    vencimiento: '2024-02-20',
-    pagado: 150.00,
-    pendiente: 92.00,
-    cobrosVinculados: [2]
-  }
-]);
-
-const clientes = ref([
-  { id: 1, nombre: 'Ana López' },
-  { id: 2, nombre: 'Carlos Ruiz' },
-  { id: 3, nombre: 'María García' }
-]);
-
-const serviciosDisponibles = ref([
-  { id: 1, nombre: 'Consulta Legal', precio: 150.00 },
-  { id: 2, nombre: 'Documentación', precio: 75.00 },
-  { id: 3, nombre: 'Asesoría Técnica', precio: 200.00 },
-  { id: 4, nombre: 'Peritaje', precio: 300.00 }
-]);
-
+// Datos reactivos
+const items = ref([]);
+const clientes = ref([]);
+const serviciosDisponibles = ref([]);
 const showForm = ref(false);
 const showServicioModal = ref(false);
 const showCobrosModal = ref(false);
 const selectedFactura = ref(null);
 const cobrosFactura = ref([]);
+const showSuccess = ref(false);
+
+// Formulario
 const form = ref({
-  id: null,
   numeroFactura: '',
   fechaEmision: '',
   cliente: '',
@@ -372,69 +330,46 @@ const totalNeto = computed(() => {
   return totalBruto.value + impuestos.value;
 });
 
-// Importar datos de cobros para calcular estados
-const cobrosData = ref([
-  {
-    id: 1,
-    cliente: 'Ana López',
-    monto: 453.75,
-    estado: 'completado',
-    facturasVinculadas: ['FAC-2024-001']
-  },
-  {
-    id: 2,
-    cliente: 'Carlos Ruiz',
-    monto: 150.00,
-    estado: 'completado',
-    facturasVinculadas: ['FAC-2024-002']
+// Computed property para calcular el total cobrado
+const totalCobrado = computed(() => {
+  return cobrosFactura.value.reduce((total, cobro) => total + cobro.monto, 0);
+});
+
+// Función para cargar datos desde la API
+const fetchData = async () => {
+  try {
+    console.log('Cargando facturas desde la API...');
+    const response = await facturasService.getAll();
+    console.log('Respuesta de la API:', response);
+    items.value = response;
+  } catch (error) {
+    console.error('Error al obtener facturas:', error);
   }
-]);
+};
 
-// Función para calcular el estado de una factura según los cobros
-function calcularEstadoFactura(factura) {
-  const cobrosAsociados = cobrosData.value.filter(cobro => 
-    factura.cobrosVinculados.includes(cobro.id) && cobro.estado === 'completado'
-  );
-  
-  const totalPagado = cobrosAsociados.reduce((total, cobro) => total + cobro.monto, 0);
-  
-  if (totalPagado >= factura.totalNeto) {
-    return 'pagada';
-  } else if (totalPagado > 0) {
-    return 'parcial';
-  } else {
-    return 'pendiente';
+// Función para cargar clientes
+const fetchClientes = async () => {
+  try {
+    console.log('Cargando clientes desde la API...');
+    const response = await clientesService.getAll();
+    console.log('Clientes cargados:', response);
+    clientes.value = response;
+  } catch (error) {
+    console.error('Error al obtener clientes:', error);
   }
-}
+};
 
-// Función para actualizar estados de todas las facturas
-function actualizarEstadosFacturas() {
-  items.value.forEach(factura => {
-    const estadoCalculado = calcularEstadoFactura(factura);
-    const cobrosAsociados = cobrosData.value.filter(cobro => 
-      factura.cobrosVinculados.includes(cobro.id) && cobro.estado === 'completado'
-    );
-    const totalPagado = cobrosAsociados.reduce((total, cobro) => total + cobro.monto, 0);
-    
-    factura.estado = estadoCalculado;
-    factura.pagado = totalPagado;
-    factura.pendiente = factura.totalNeto - totalPagado;
-  });
-}
-
-// Función para obtener información de cobros de una factura
-function getCobrosInfo(factura) {
-  const cobrosAsociados = cobrosData.value.filter(cobro => 
-    factura.cobrosVinculados.includes(cobro.id)
-  );
-  
-  return cobrosAsociados.map(cobro => ({
-    id: cobro.id,
-    monto: cobro.monto,
-    estado: cobro.estado,
-    fecha: cobro.fechaPago
-  }));
-}
+// Función para cargar servicios disponibles
+const fetchServicios = async () => {
+  try {
+    console.log('Cargando servicios desde la API...');
+    const response = await serviciosService.getAll();
+    console.log('Servicios cargados:', response);
+    serviciosDisponibles.value = response;
+  } catch (error) {
+    console.error('Error al obtener servicios:', error);
+  }
+};
 
 function formatDate(date) {
   return new Date(date).toLocaleDateString('es-ES');
@@ -455,7 +390,6 @@ function openForm(item = null) {
     };
   } else {
     form.value = {
-      id: null,
       numeroFactura: `FAC-${new Date().getFullYear()}-${String(items.value.length + 1).padStart(3, '0')}`,
       fechaEmision: new Date().toISOString().split('T')[0],
       cliente: '',
@@ -471,38 +405,54 @@ function closeForm() {
   showForm.value = false;
 }
 
-function saveItem() {
-  if (form.value.id) {
-    // Editar
-    const idx = items.value.findIndex(i => i.id === form.value.id);
-    if (idx !== -1) {
-      items.value[idx] = { 
-        ...form.value,
-        totalBruto: totalBruto.value,
-        impuestos: impuestos.value,
-        totalNeto: totalNeto.value,
-        pagado: items.value[idx].pagado,
-        pendiente: totalNeto.value - items.value[idx].pagado
-      };
-    }
-  } else {
-    // Nuevo
-    form.value.id = Date.now();
-    items.value.push({ 
+async function saveItem() {
+  try {
+    const facturaData = {
       ...form.value,
       totalBruto: totalBruto.value,
       impuestos: impuestos.value,
       totalNeto: totalNeto.value,
-      pagado: 0,
-      pendiente: totalNeto.value
-    });
+      fechaCreacion: new Date().getTime()
+    };
+
+    if (form.value._id) {
+      // Editar
+      console.log('Actualizando factura:', facturaData);
+      await facturasService.update(form.value._id, facturaData);
+      showSuccess.value = true;
+      setTimeout(() => {
+        showSuccess.value = false;
+      }, 3000);
+    } else {
+      // Nuevo
+      console.log('Creando nueva factura:', facturaData);
+      await facturasService.create(facturaData);
+      showSuccess.value = true;
+      setTimeout(() => {
+        showSuccess.value = false;
+      }, 3000);
+    }
+    
+    showForm.value = false;
+    await fetchData(); // Recargar datos
+  } catch (error) {
+    console.error('Error al guardar factura:', error);
   }
-  showForm.value = false;
 }
 
-function deleteItem(idx) {
+async function deleteItem(idx) {
   if (confirm('¿Seguro que quieres eliminar esta factura?')) {
-    items.value.splice(idx, 1);
+    try {
+      const factura = items.value[idx];
+      await facturasService.delete(factura._id);
+      showSuccess.value = true;
+      setTimeout(() => {
+        showSuccess.value = false;
+      }, 3000);
+      await fetchData(); // Recargar datos
+    } catch (error) {
+      console.error('Error al eliminar factura:', error);
+    }
   }
 }
 
@@ -523,7 +473,7 @@ function confirmAddServicio() {
   const servicioSeleccionado = serviciosDisponibles.value.find(s => s.nombre === nuevoServicio.value.nombre);
   if (servicioSeleccionado) {
     form.value.servicios.push({
-      id: servicioSeleccionado.id,
+      id: servicioSeleccionado._id,
       nombre: nuevoServicio.value.nombre,
       cantidad: nuevoServicio.value.cantidad,
       precioUnitario: nuevoServicio.value.precioUnitario || servicioSeleccionado.precio
@@ -570,11 +520,6 @@ function obtenerCobrosFactura(factura) {
   );
 }
 
-// Computed property para calcular el total cobrado
-const totalCobrado = computed(() => {
-  return cobrosFactura.value.reduce((total, cobro) => total + cobro.monto, 0);
-});
-
 function verCobros(factura) {
   selectedFactura.value = factura;
   cobrosFactura.value = obtenerCobrosFactura(factura);
@@ -592,6 +537,13 @@ function irACobros() {
   // Navegar a la página de cobros/pagos
   window.location.hash = '#/cobros-pagos';
 }
+
+// Cargar datos al montar el componente
+onMounted(async () => {
+  await fetchData();
+  await fetchClientes();
+  await fetchServicios();
+});
 </script>
 
 <style scoped>

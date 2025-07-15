@@ -39,7 +39,7 @@ export default {
   props: {
     title: {
       type: String,
-      default: "Informes médicos periciales",
+      default: "Crms",
     },
     backgroundColor: {
       type: String,

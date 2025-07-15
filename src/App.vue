@@ -114,7 +114,7 @@ export default {
       if (Notification.permission === 'granted') {
         const notification = new Notification(titulo, {
           body: desc,
-          appName: 'Informes médicos periciales',
+          appName: 'Crms',
           icon: './src/img/vue-logo.png' // Ruta al ícono opcional
         });
 

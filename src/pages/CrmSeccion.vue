@@ -5,16 +5,15 @@
       <div class="header-content">
         <h1 class="page-title">
           <i class="ti-folder"></i>
-          {{ seccionActual ? seccionActual.nombre : 'Sección no encontrada' }}1
+          {{ seccionActual ? seccionActual.nombre : 'Sección no encontrada' }}
         </h1>
         <p class="page-subtitle">Gestión de datos de la sección</p>
       </div>
     </div>
 
-    {{ sectionName }}ccc
 
           <!-- Acciones de la sección -->
-      <div class="table-section">
+      <!-- <div class="table-section">
         <div class="table-header">
           <h2>Acciones de la Sección</h2>
         </div>
@@ -42,7 +41,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </div> -->
 
     <!-- Contenido principal -->
     <div v-if="cargando" class="text-center">Cargando...</div>
@@ -348,10 +347,10 @@
             </div>
             <div class="row mt-3">
               <div class="col-12">
-                <button class="btn-add" @click="agregarCampo" :disabled="!puedeAgregarCampo">
+                <button class="btn-add text-center" style="width: 100%; justify-content: center;" @click="agregarCampo" :disabled="!puedeAgregarCampo">
                   <i class="ti-plus"></i> Agregar Campo
                 </button>
-                <button class="btn-secondary ml-2" @click="limpiarFormularioCampo">
+                <button class="btn-secondary ml-2 mt-3" @click="limpiarFormularioCampo">
                   <i class="ti-refresh"></i> Limpiar
                 </button>
               </div>
@@ -482,8 +481,10 @@ export default {
     const seccionActual = computed(() => {
       console.log('Secciones:', secciones.value.map(s => s.nombre));
       console.log('SectionName:', props.sectionName);
+      // Reemplazar guiones por espacios para la búsqueda
+      const nombreBuscado = (props.sectionName || '').replace(/-/g, ' ').trim().toLowerCase();
       const found = secciones.value.find(
-        s => (s.nombre || '').trim().toLowerCase() === (props.sectionName || '').trim().toLowerCase()
+        s => (s.nombre || '').trim().toLowerCase() === nombreBuscado
       );
       console.log('Sección encontrada:', found);
       return found;
@@ -989,51 +990,67 @@ export default {
 </script>
 
 <style scoped>
+.listado-clientes-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
+  padding: 0;
+}
+
 .crm-seccion-container {
   padding: 20px;
 }
 
 .page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 30px;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  padding: 40px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
   margin-bottom: 30px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
   text-align: center;
 }
 
 .page-title {
-  font-size: 2.5rem;
-  font-weight: 600;
-  margin-bottom: 10px;
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 36px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
 }
 
 .page-title i {
-  margin-right: 15px;
-  font-size: 2.2rem;
+  color: #1b6659;
+  font-size: 40px;
 }
 
 .page-subtitle {
-  font-size: 1.1rem;
-  opacity: 0.9;
   margin: 0;
+  color: #7f8c8d;
+  font-size: 18px;
+  font-weight: 500;
 }
 
 .main-content {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 40px 20px;
 }
 
 .table-section {
-  background: white;
-  border-radius: 10px;
-  padding: 25px;
-  margin-bottom: 25px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  margin-bottom: 40px;
 }
 
 .table-header {
@@ -1048,7 +1065,7 @@ export default {
 .table-header h2 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #333;
+  color: #1b6659;
   margin: 0;
 }
 
@@ -1060,207 +1077,98 @@ export default {
   color: #6c757d;
 }
 
-.empty-state {
-  padding: 60px 20px;
-  text-align: center;
-  color: #6c757d;
-}
-
-.empty-state h3 {
-  margin-bottom: 10px;
-  color: #495057;
-}
-
-.fields-management {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-
-.field-form {
-  background: #e9ecef;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-
-.field-form .row {
-  align-items: flex-end;
-  gap: 15px;
-}
-
-.field-form .form-group {
-  margin-bottom: 0;
-}
-
-.field-form .form-group label {
-  font-weight: 600;
-  color: #495057;
-  margin-bottom: 8px;
-  display: block;
-}
-
-.field-form .form-control {
-  border: 2px solid #dee2e6;
-  border-radius: 8px;
-  padding: 10px 15px;
-  transition: all 0.3s ease;
-  width: 100%;
-}
-
-.field-form .form-control:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-
-.field-form .form-control-sm {
-  padding: 6px 10px;
-  font-size: 0.9rem;
-}
-
-.field-form .btn-add {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.btn-add {
+  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 12px 24px;
+  border-radius: 25px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 14px;
 }
 
-.field-form .btn-add:hover {
+.btn-add:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 20px rgba(27, 102, 89, 0.4);
 }
 
-.field-form .btn-add:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.field-form .btn-secondary {
+.btn-secondary {
   background: #6c757d;
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 12px 24px;
+  border-radius: 25px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 14px;
+  width: 100%;
+  justify-content: center;
 }
 
-.field-form .btn-secondary:hover {
+.btn-secondary:hover {
   background: #5a6268;
   transform: translateY(-2px);
 }
 
-.existing-fields {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid #dee2e6;
+.btn-delete, .btn-edit, .btn-view {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  margin-right: 8px;
+  transition: color 0.2s;
 }
 
-.existing-fields h4 {
-  color: #495057;
-  margin-bottom: 15px;
-  font-weight: 600;
+.btn-edit {
+  color: #1b6659;
 }
 
-.fields-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.btn-delete {
+  color: #e74c3c;
 }
 
-.field-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 15px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #e9ecef;
+.btn-view {
+  color: #e67e22;
 }
 
-.field-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+.btn-edit:hover {
+  color: #2d8a7a;
 }
 
-.field-name {
-  font-weight: 600;
-  color: #495057;
+.btn-delete:hover {
+  color: #c0392b;
+}
+
+.btn-view:hover {
+  color: #d35400;
+}
+
+.text-capitalize {
   text-transform: capitalize;
 }
 
-.field-type {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.field-relation {
-  color: #6c757d;
-  font-size: 0.9rem;
-  font-style: italic;
-}
-
-.btn-delete-sm {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.8rem;
-}
-
-.btn-delete-sm:hover {
-  background: #c82333;
-  transform: scale(1.05);
-}
-
-.form-group {
-  margin-bottom: 0;
-}
-
-.form-group label {
-  font-weight: 600;
-  color: #495057;
-  margin-bottom: 8px;
-  display: block;
-}
-
-.form-control {
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  padding: 10px 15px;
+/* Inputs y tablas */
+.form-control, .form-control-sm {
+  padding: 10px;
+  border: 2px solid rgba(27, 102, 89, 0.2);
+  border-radius: 10px;
+  font-size: 14px;
   transition: all 0.3s ease;
 }
 
-.form-control:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-
-.form-control-sm {
-  padding: 6px 10px;
-  font-size: 0.9rem;
+.form-control:focus, .form-control-sm:focus {
+  outline: none;
+  border-color: #1b6659;
+  box-shadow: 0 0 0 3px rgba(27, 102, 89, 0.1);
 }
 
 .table {
@@ -1271,7 +1179,7 @@ export default {
   background: #f8f9fa;
   border-bottom: 2px solid #dee2e6;
   font-weight: 600;
-  color: #495057;
+  color: #1b6659;
   padding: 12px 8px;
 }
 
@@ -1293,133 +1201,27 @@ export default {
   padding: 12px 8px;
 }
 
-.btn-add {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-add:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.btn-delete {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  height: 35px;
-  width: 35px;
-}
-
-.btn-edit {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  height: 35px;
-  width: 35px;
-}
-
-.btn-delete:hover {
-  background: #c82333;
-  transform: scale(1.05);
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  justify-content: center;
-}
-
-.btn-secondary:hover {
-  background: #5a6268;
-  transform: translateY(-2px);
-}
-
-.actions-section {
-  padding: 20px 0;
-}
-
-.text-capitalize {
-  text-transform: capitalize;
-}
-
-.text-primary {
-  color: #007bff !important;
-}
-
-.text-success {
-  color: #28a745 !important;
-}
-
-.text-info {
-  color: #17a2b8 !important;
-}
-
-.text-warning {
-  color: #ffc107 !important;
-}
-
 /* Responsive */
 @media (max-width: 768px) {
   .page-title {
-    font-size: 2rem;
+    font-size: 28px;
   }
-  
+  .page-title i {
+    font-size: 32px;
+  }
+  .main-content {
+    padding: 20px 5px;
+  }
+  .table-section {
+    padding: 10px;
+  }
   .table-header {
     flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
-  }
-  
-  .table-responsive {
-    overflow-x: auto;
-  }
-  
-  .actions-section .row {
     gap: 15px;
+    text-align: center;
   }
-
-  .field-form .row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .field-form .form-group {
-    width: 100%;
-  }
-
-  .field-form .form-control {
-    width: 100%;
-  }
-
-  .field-form .btn-add {
-    width: 100%;
+  .btn-add {
+    align-self: center;
   }
 }
 

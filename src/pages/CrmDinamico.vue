@@ -50,10 +50,10 @@
               <i class="ti-folder"></i>
               {{ seccion.nombre }}
             </h3>
-            <span class="record-count">{{ seccion.datos.length }} registros</span>
+            <span class="record-count">{{ seccion.datos ? seccion.datos.length : 0 }} registros</span>
           </div>
           <div class="section-actions">
-            <button class="btn-view" @click="navegarASeccion(seccion.nombre)" title="Ver sección">
+            <button class="btn-view" @click="navegarASeccion(seccion.slug || slugify(seccion.nombre))" title="Ver sección">
               <i class="ti-eye"></i>
             </button>
             <button class="btn-edit" @click="editarNombreSeccion(seccionIndex)" title="Editar nombre">
@@ -92,7 +92,7 @@
               <div class="form-group">
                 <label>Sección relacionada</label>
                 <select class="form-control" v-model="seccion.nuevoCampoSeccion">
-                  <option v-for="sec in secciones" :key="sec.nombre" :value="sec.nombre" v-if="sec.nombre !== seccion.nombre">{{ sec.nombre }}</option>
+                  <option v-for="sec in secciones" :key="sec.slug || slugify(sec.nombre)" :value="sec.slug || slugify(sec.nombre)" v-if="(sec.slug || slugify(sec.nombre)) !== (seccion.slug || slugify(seccion.nombre))">{{ sec.nombre }}</option>
                 </select>
               </div>
             </div>
@@ -270,22 +270,39 @@ export default {
     const cargarSecciones = async () => {
       try {
         const res = await seccionesDinamicasService.getAll()
-        secciones.value = Array.isArray(res) ? res : (res.data || [])
+        secciones.value = (Array.isArray(res) ? res : (res.data || [])).map(s => ({
+          ...s,
+          slug: s.slug || slugify(s.nombre)
+        }))
+        console.log('SECCIONES:', JSON.stringify(secciones.value, null, 2))
       } catch (e) {
         alert('Error al cargar secciones')
         secciones.value = []
       }
     }
 
+    // Función para normalizar nombres de sección
+    function slugify(text) {
+      return text
+        .toString()
+        .toLowerCase()
+        .normalize('NFD').replace(/[ \u0300-\u036f]/g, '') // quita tildes
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+    }
+
     // Crear nueva sección
     const crearSeccion = async () => {
       const nombre = nuevaSeccion.value.trim()
+      const slug = slugify(nombre)
       if (!nombre) return
-      if (secciones.value.find(s => s.nombre.toLowerCase() === nombre.toLowerCase())) return
+      if (secciones.value.find(s => (s.slug || slugify(s.nombre)) === slug)) return
       try {
-        await seccionesDinamicasService.create({ nombre, columnas: [], datos: [] })
+        await seccionesDinamicasService.create({ nombre, slug, columnas: [], datos: [] })
         nuevaSeccion.value = ''
         await cargarSecciones()
+        // Disparar evento para actualizar el menú en tiempo real
+        window.dispatchEvent(new CustomEvent('crmSectionsUpdated'))
       } catch (e) {
         alert('Error al crear sección')
       }
@@ -307,14 +324,17 @@ export default {
         await seccionesDinamicasService.update(seccion._id || seccion.id, { ...seccion, nombre: nuevoNombre })
         showEditModal.value = false
         await cargarSecciones()
+        // Disparar evento para actualizar el menú en tiempo real
+        window.dispatchEvent(new CustomEvent('crmSectionsUpdated'))
       } catch (e) {
         alert('Error al editar sección')
       }
     }
 
     // Navegar a sección específica
-    const navegarASeccion = (nombreSeccion) => {
-      const path = `/crm-seccion/${nombreSeccion.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')}`
+    const navegarASeccion = (slugSeccion) => {
+      const path = `/crm-seccion/${slugSeccion}`
+      console.log('NAVEGAR: slug', slugSeccion, 'URL', path)
       window.location.href = path
     }
 
@@ -325,6 +345,8 @@ export default {
       try {
         await seccionesDinamicasService.delete(seccion._id || seccion.id)
         await cargarSecciones()
+        // Disparar evento para actualizar el menú en tiempo real
+        window.dispatchEvent(new CustomEvent('crmSectionsUpdated'))
       } catch (e) {
         alert('Error al eliminar sección')
       }
@@ -336,12 +358,23 @@ export default {
       const nombre = (seccion.nuevoCampoNombre || '').trim().toLowerCase()
       const tipo = seccion.nuevoCampoTipo || 'texto'
       const seccionRelacionada = seccion.nuevoCampoSeccion || ''
+      console.log('AGREGAR CAMPO: slug relacionado:', seccionRelacionada, 'nombre:', nombre)
       if (!nombre || seccion.columnas.some(col => col.nombre === nombre)) return
       const nuevoCampo = { nombre, tipo }
       if (tipo === 'relacional' && seccionRelacionada) {
         nuevoCampo.seccion = seccionRelacionada
       }
       seccion.columnas.push(nuevoCampo)
+      // Inicializar la nueva propiedad en todas las filas existentes
+      seccion.datos.forEach(fila => {
+        if (!(nombre in fila)) {
+          fila[nombre] = ''
+        }
+      })
+      // Inicializar la nueva propiedad en nuevaFila
+      if (!(nombre in seccion.nuevaFila)) {
+        seccion.nuevaFila[nombre] = ''
+      }
       seccion.datos.forEach(fila => { fila[nombre] = '' })
       seccion.nuevaFila[nombre] = ''
       seccion.nuevoCampoNombre = ''
@@ -461,7 +494,7 @@ export default {
 
     // Opciones relacionales
     const getOpcionesRelacionadas = (seccionRelacionada) => {
-      const sec = secciones.value.find(s => s.nombre === seccionRelacionada)
+      const sec = secciones.value.find(s => (s.slug || slugify(s.nombre)) === (seccionRelacionada ? slugify(seccionRelacionada) : ''))
       if (!sec) return []
       if (sec.columnas.length === 0) return []
       const campoClave = sec.columnas[0].nombre
@@ -508,6 +541,7 @@ export default {
       navegarASeccion,
       forzarActualizacionMenu,
       getOpcionesRelacionadas,
+      slugify,
       guardarFilaEditada
     }
   }
@@ -515,51 +549,67 @@ export default {
 </script>
 
 <style scoped>
+.listado-clientes-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
+  padding: 0;
+}
+
 .crm-dinamico-container {
   padding: 20px;
 }
 
 .page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 30px;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  padding: 40px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
   margin-bottom: 30px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
   text-align: center;
 }
 
 .page-title {
-  font-size: 2.5rem;
-  font-weight: 600;
-  margin-bottom: 10px;
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 36px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
 }
 
 .page-title i {
-  margin-right: 15px;
-  font-size: 2.2rem;
+  color: #1b6659;
+  font-size: 40px;
 }
 
 .page-subtitle {
-  font-size: 1.1rem;
-  opacity: 0.9;
   margin: 0;
+  color: #7f8c8d;
+  font-size: 18px;
+  font-weight: 500;
 }
 
 .main-content {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 40px 20px;
 }
 
 .table-section {
-  background: white;
-  border-radius: 10px;
-  padding: 25px;
-  margin-bottom: 25px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  margin-bottom: 40px;
 }
 
 .table-header {
@@ -574,43 +624,8 @@ export default {
 .table-header h2 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #333;
+  color: #1b6659;
   margin: 0;
-}
-
-.add-section-content {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #f8f9fa;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.section-title h3 {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: #333;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.section-title h3 i {
-  color: #667eea;
 }
 
 .record-count {
@@ -621,44 +636,98 @@ export default {
   color: #6c757d;
 }
 
-.section-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.fields-management {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-
-.form-group {
-  margin-bottom: 0;
-}
-
-.form-group label {
+.btn-add {
+  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 25px;
   font-weight: 600;
-  color: #495057;
-  margin-bottom: 8px;
-  display: block;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
 }
 
-.form-control {
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  padding: 10px 15px;
+.btn-add:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(27, 102, 89, 0.4);
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+}
+
+.btn-delete, .btn-edit, .btn-view {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  margin-right: 8px;
+  transition: color 0.2s;
+}
+
+.btn-edit {
+  color: #1b6659;
+}
+
+.btn-delete {
+  color: #e74c3c;
+}
+
+.btn-view {
+  color: #e67e22;
+}
+
+.btn-edit:hover {
+  color: #2d8a7a;
+}
+
+.btn-delete:hover {
+  color: #c0392b;
+}
+
+.btn-view:hover {
+  color: #d35400;
+}
+
+.text-capitalize {
+  text-transform: capitalize;
+}
+
+/* Inputs y tablas */
+.form-control, .form-control-sm {
+  padding: 10px;
+  border: 2px solid rgba(27, 102, 89, 0.2);
+  border-radius: 10px;
+  font-size: 14px;
   transition: all 0.3s ease;
 }
 
-.form-control:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-
-.form-control-sm {
-  padding: 6px 10px;
-  font-size: 0.9rem;
+.form-control:focus, .form-control-sm:focus {
+  outline: none;
+  border-color: #1b6659;
+  box-shadow: 0 0 0 3px rgba(27, 102, 89, 0.1);
 }
 
 .table {
@@ -669,7 +738,7 @@ export default {
   background: #f8f9fa;
   border-bottom: 2px solid #dee2e6;
   font-weight: 600;
-  color: #495057;
+  color: #1b6659;
   padding: 12px 8px;
 }
 
@@ -691,129 +760,27 @@ export default {
   padding: 12px 8px;
 }
 
-.btn-add {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-add:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.btn-view {
-  background: #17a2b8;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-view:hover {
-  background: #138496;
-  transform: scale(1.05);
-}
-
-.btn-edit {
-  background: #ffc107;
-  color: #212529;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-edit:hover {
-  background: #e0a800;
-  transform: scale(1.05);
-}
-
-.btn-delete {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-delete:hover {
-  background: #c82333;
-  transform: scale(1.05);
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  justify-content: center;
-}
-
-.btn-secondary:hover {
-  background: #5a6268;
-  transform: translateY(-2px);
-}
-
-.actions-section {
-  padding: 20px 0;
-}
-
-.text-capitalize {
-  text-transform: capitalize;
-}
-
 /* Responsive */
 @media (max-width: 768px) {
   .page-title {
-    font-size: 2rem;
+    font-size: 28px;
   }
-  
-  .table-header,
-  .section-header {
+  .page-title i {
+    font-size: 32px;
+  }
+  .main-content {
+    padding: 20px 5px;
+  }
+  .table-section {
+    padding: 10px;
+  }
+  .table-header {
     flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
-  }
-  
-  .section-title {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 5px;
-  }
-  
-  .section-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-  
-  .table-responsive {
-    overflow-x: auto;
-  }
-  
-  .actions-section .row {
     gap: 15px;
+    text-align: center;
+  }
+  .btn-add {
+    align-self: center;
   }
 }
 </style> 

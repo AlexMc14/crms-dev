@@ -36,7 +36,7 @@ const routes = [
   {
     path: "/",
     component: DashboardLayout,
-    redirect: "/listado-clientes",
+    redirect: "/crm-dinamico",
     children: [
       {
         path: "dashboard",

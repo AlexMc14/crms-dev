@@ -18,7 +18,7 @@
           />
           
           <!-- Menú desplegable para rutas con children -->
-          <div 
+          <!-- <div 
             v-for="(route, index) in routesWithChildren" 
             :key="`dropdown-${index}`"
             class="dropdown-menu-container nav-item"
@@ -50,7 +50,7 @@
                 :class="currentPage === getRouteIndex(child.path) ? 'currentPage' : ''"
               />
             </div>
-          </div>
+          </div> -->
           <!-- Rutas dinámicas del CRM -->
           <sidebar-link
             v-for="(route, index) in crmRoutes"
@@ -142,42 +142,42 @@ export default {
       routesWatch: [],
       crmSections: [],
       routes: [
-        { path: '/dashboard', name: 'Dashboard', icon: 'ti-panel' },
-        { path: '/listado-clientes', name: 'Listado clientes', icon: 'ti-infinite' },
-        { 
-          path: '#', // Sin ruta directa, solo contenedor
-          name: 'Agenda y Citas', 
-          icon: 'ti-calendar',
-          isDropdown: true, // Identificar que es un menú desplegable
-          children: [
-            { path: '/listado-citas', name: 'Listado de Citas', icon: 'ti-list' },
-            { path: '/agenda', name: 'Agenda', icon: 'ti-calendar' },
-            { path: '/agenda-citas', name: 'Agenda de Citas', icon: 'ti-calendar' }
-          ]
-        },
-        { 
-          path: '#', // Sin ruta directa, solo contenedor
-          name: 'Servicios y Productos', 
-          icon: 'ti-briefcase',
-          isDropdown: true, // Identificar que es un menú desplegable
-          children: [
-            { path: '/listado-servicios', name: 'Listado de Servicios', icon: 'ti-list' },
-            { path: '/listado-productos', name: 'Listado de Productos', icon: 'ti-list' },
-            { path: '/listado-categorias', name: 'Listado de Categorías', icon: 'ti-list' }
-          ]
-        },
-        { 
-          path: '#', // Sin ruta directa, solo contenedor
-          name: 'Facturación y Pagos', 
-          icon: 'ti-money',
-          isDropdown: true, // Identificar que es un menú desplegable
-          children: [
-            { path: '/facturacion', name: 'Facturación', icon: 'ti-receipt' },
-            { path: '/cobros-pagos', name: 'Cobros/Pagos', icon: 'ti-credit-card' }
-          ]
-        },
-        { path: '/empleados-usuarios', name: 'Empleados/Usuarios', icon: 'ti-user' },
-        { path: '/seguridad-permisos', name: 'Seguridad/Permisos', icon: 'ti-shield' },
+        // { path: '/dashboard', name: 'Dashboard', icon: 'ti-panel' },
+        // { path: '/listado-clientes', name: 'Listado clientes', icon: 'ti-infinite' },
+        // { 
+        //   path: '#', // Sin ruta directa, solo contenedor
+        //   name: 'Agenda y Citas', 
+        //   icon: 'ti-calendar',
+        //   isDropdown: true, // Identificar que es un menú desplegable
+        //   children: [
+        //     { path: '/listado-citas', name: 'Listado de Citas', icon: 'ti-list' },
+        //     { path: '/agenda', name: 'Agenda', icon: 'ti-calendar' },
+        //     { path: '/agenda-citas', name: 'Agenda de Citas', icon: 'ti-calendar' }
+        //   ]
+        // },
+        // { 
+        //   path: '#', // Sin ruta directa, solo contenedor
+        //   name: 'Servicios y Productos', 
+        //   icon: 'ti-briefcase',
+        //   isDropdown: true, // Identificar que es un menú desplegable
+        //   children: [
+        //     { path: '/listado-servicios', name: 'Listado de Servicios', icon: 'ti-list' },
+        //     { path: '/listado-productos', name: 'Listado de Productos', icon: 'ti-list' },
+        //     { path: '/listado-categorias', name: 'Listado de Categorías', icon: 'ti-list' }
+        //   ]
+        // },
+        // { 
+        //   path: '#', // Sin ruta directa, solo contenedor
+        //   name: 'Facturación y Pagos', 
+        //   icon: 'ti-money',
+        //   isDropdown: true, // Identificar que es un menú desplegable
+        //   children: [
+        //     { path: '/facturacion', name: 'Facturación', icon: 'ti-receipt' },
+        //     { path: '/cobros-pagos', name: 'Cobros/Pagos', icon: 'ti-credit-card' }
+        //   ]
+        // },
+        // { path: '/empleados-usuarios', name: 'Empleados/Usuarios', icon: 'ti-user' },
+        // { path: '/seguridad-permisos', name: 'Seguridad/Permisos', icon: 'ti-shield' },
         { path: '/crm-dinamico', name: 'CRM Dinámico', icon: 'ti-settings' },
       ],
       routesWithChildren: [],
@@ -198,6 +198,7 @@ export default {
     },
     needShow(route) {
       if (route === '#' || route === undefined) return true;
+      if (route === '/crm-dinamico') return true; // Mostrar siempre CRM Dinámico
       // Mostrar siempre las rutas del CRM
       if (route.startsWith('/crm-seccion/')) return true;
       const routeFix = route.replace('/', '');

@@ -9,10 +9,10 @@
             Tip 2: you can change the color of the active button using the data-active-color="primary | info | success | warning | danger"
         -->
     <!-- -->
-    <div class="sidebar-wrapper" style="background: #0f2a24;">
-      <div class="logo">
+    <div class="sidebar-wrapper pt-4" style="background: #0f2a24;">
+      <!-- <div class="logo">
             <img src="@/assets/img/logo.svg" style="max-width: -webkit-fill-available;" alt="" />
-      </div>
+      </div> -->
       <slot> </slot>
       <ul class="nav">
         <!--By default vue-router adds an active class to each route link. This way the links are colored when clicked-->

@@ -119,7 +119,7 @@
               <tr v-for="(fila, filaIndex) in seccion.datos" :key="filaIndex">
                 <td v-for="col in seccion.columnas" :key="col.nombre">
                   <template v-if="col.tipo === 'relacional'">
-                    <select class="form-control form-control-sm" v-model="fila[col.nombre]">
+                    <select class="form-control form-control-sm" v-model="fila[col.nombre]" @change="fila._editando = true">
                       <option value="">Selecciona...</option>
                       <option v-for="item in getOpcionesRelacionadas(col.seccion)" :key="item" :value="item">{{ item }}</option>
                     </select>
@@ -130,12 +130,16 @@
                       class="form-control form-control-sm"
                       v-model="fila[col.nombre]"
                       :placeholder="'Ingrese ' + col.nombre"
+                      @input="fila._editando = true"
                     >
                   </template>
                 </td>
                 <td class="text-center">
                   <button class="btn-delete" @click="eliminarFila(seccionIndex, filaIndex)" title="Eliminar fila">
                     <i class="ti-trash"></i>
+                  </button>
+                  <button v-if="fila._editando" class="btn-add" @click="guardarFilaEditada(seccionIndex, filaIndex)" title="Guardar cambios">
+                    <i class="ti-save"></i>
                   </button>
                 </td>
               </tr>
@@ -163,7 +167,7 @@
       </div>
 
       <!-- Acciones globales -->
-      <div class="table-section">
+      <!-- <div class="table-section">
         <div class="table-header">
           <h2>Acciones Globales</h2>
         </div>
@@ -198,7 +202,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </div> -->
     </div>
 
     <!-- Modal para editar nombre de sección -->
@@ -464,6 +468,19 @@ export default {
       return [...new Set(sec.datos.map(fila => fila[campoClave]).filter(Boolean))]
     }
 
+    // Guardar fila editada
+    const guardarFilaEditada = async (seccionIndex, filaIndex) => {
+      const seccion = secciones.value[seccionIndex]
+      const fila = seccion.datos[filaIndex]
+      try {
+        await seccionesDinamicasService.updateRegistro(seccion._id || seccion.id, fila._id || fila.id, fila)
+        fila._editando = false
+        await cargarSecciones()
+      } catch (e) {
+        alert('Error al guardar los cambios de la fila')
+      }
+    }
+
     onMounted(() => {
       cargarSecciones()
     })
@@ -490,7 +507,8 @@ export default {
       guardarConfiguracion,
       navegarASeccion,
       forzarActualizacionMenu,
-      getOpcionesRelacionadas
+      getOpcionesRelacionadas,
+      guardarFilaEditada
     }
   }
 }

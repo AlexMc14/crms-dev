@@ -107,68 +107,86 @@
                   No hay registros aún.
                 </td>
               </tr>
-              <tr v-for="(fila, filaIndex) in seccionActual.datos" :key="filaIndex">
+              <tr v-for="(fila, filaIndex) in seccionActual.datos" :key="fila._id || filaIndex">
                 <td v-for="columna in seccionActual.columnas" :key="columna.nombre || columna">
-                  <template v-if="columna.tipo === 'relacional'">
-                    <div class="search-select-container">
+                  <template v-if="fila._id ? filaEditando === fila._id : true">
+                    <template v-if="columna.tipo === 'relacional'">
+                      <div class="search-select-container">
+                        <input
+                          type="text"
+                          class="form-control form-control-sm"
+                          v-model="fila.valores[columna.nombre]"
+                          :placeholder="'Buscar en ' + columna.seccionRelacionada"
+                          @input="filtrarOpciones($event, columna, fila, filaIndex)"
+                          @focus="mostrarOpciones(columna, fila, filaIndex)"
+                          autocomplete="off"
+                        >
+                        <div v-if="opcionesVisibles[columna.nombre + '_' + filaIndex]" class="opciones-dropdown">
+                          <div
+                            v-for="opcion in opcionesFiltradas[columna.nombre + '_' + filaIndex]"
+                            :key="opcion"
+                            class="opcion-item"
+                            @mousedown.prevent="seleccionarOpcion(opcion, columna.nombre, fila, filaIndex)"
+                          >
+                            {{ opcion }}
+                          </div>
+                          <div v-if="opcionesFiltradas[columna.nombre + '_' + filaIndex].length === 0" class="no-opciones">
+                            No se encontraron resultados
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                    <template v-else-if="columna.tipo === 'numero'">
+                      <input
+                        type="number"
+                        class="form-control form-control-sm"
+                        v-model="fila.valores[columna.nombre]"
+                        :placeholder="'Ingrese ' + columna.nombre"
+                      >
+                    </template>
+                    <template v-else-if="columna.tipo === 'fecha'">
+                      <input
+                        type="date"
+                        class="form-control form-control-sm"
+                        v-model="fila.valores[columna.nombre]"
+                        :placeholder="'Ingrese ' + columna.nombre"
+                      >
+                    </template>
+                    <template v-else>
                       <input
                         type="text"
                         class="form-control form-control-sm"
                         v-model="fila.valores[columna.nombre]"
-                        :placeholder="'Buscar en ' + columna.seccionRelacionada"
-                        @input="filtrarOpciones($event, columna, fila, filaIndex)"
-                        @focus="mostrarOpciones(columna, fila, filaIndex)"
-                        @blur="ocultarOpciones(columna, filaIndex)"
-                        @change="actualizarRegistro(fila)"
-                        autocomplete="off"
+                        :placeholder="'Ingrese ' + columna.nombre"
                       >
-                      <div v-if="opcionesVisibles[columna.nombre + '_' + filaIndex]" class="opciones-dropdown">
-                        <div
-                          v-for="opcion in opcionesFiltradas[columna.nombre + '_' + filaIndex]"
-                          :key="opcion"
-                          class="opcion-item"
-                          @mousedown.prevent="seleccionarOpcion(opcion, columna.nombre, fila, filaIndex)"
-                        >
-                          {{ opcion }}
-                        </div>
-                        <div v-if="opcionesFiltradas[columna.nombre + '_' + filaIndex].length === 0" class="no-opciones">
-                          No se encontraron resultados
-                        </div>
-                      </div>
-                    </div>
-                  </template>
-                  <template v-else-if="columna.tipo === 'numero'">
-                    <input
-                      type="number"
-                      class="form-control form-control-sm"
-                      v-model="fila.valores[columna.nombre]"
-                      :placeholder="'Ingrese ' + columna.nombre"
-                      @change="actualizarRegistro(fila)"
-                    >
-                  </template>
-                  <template v-else-if="columna.tipo === 'fecha'">
-                    <input
-                      type="date"
-                      class="form-control form-control-sm"
-                      v-model="fila.valores[columna.nombre]"
-                      :placeholder="'Ingrese ' + columna.nombre"
-                      @change="actualizarRegistro(fila)"
-                    >
+                    </template>
                   </template>
                   <template v-else>
-                    <input
-                      type="text"
-                      class="form-control form-control-sm"
-                      v-model="fila.valores[columna.nombre]"
-                      :placeholder="'Ingrese ' + columna.nombre"
-                      @change="actualizarRegistro(fila)"
-                    >
+                    {{ fila.valores[columna.nombre] }}
                   </template>
                 </td>
                 <td class="text-center">
                   <button class="btn-delete" @click="eliminarFila(filaIndex)" title="Eliminar fila">
                     <i class="ti-trash"></i>
                   </button>
+                 <!-- Para filas nuevas (sin _id): solo mostrar guardar -->
+                 <template v-if="!fila._id">
+                   <button class="btn-add" @click="guardarFilaEditada(fila, filaIndex)" title="Guardar">
+                     <i class="ti-save"></i>
+                   </button>
+                 </template>
+                 <!-- Para filas existentes -->
+                 <template v-else>
+                   <button v-if="filaEditando !== fila._id" class="btn-edit ml-2" @click="filaEditando = fila._id" title="Editar">
+                     <i class="ti-pencil"></i>
+                   </button>
+                   <button v-if="filaEditando === fila._id" class="btn-add" @click="guardarFilaEditada(fila, filaIndex); filaEditando = null" title="Guardar cambios">
+                     <i class="ti-save"></i>
+                   </button>
+                   <button v-if="filaEditando === fila._id" class="btn-edit" @click="revertirFila(fila, filaIndex); filaEditando = null" title="Cancelar">
+                     <i class="ti-close"></i>
+                   </button>
+                 </template>
                 </td>
               </tr>
             </tbody>
@@ -180,7 +198,7 @@
                       <input
                         type="text"
                         class="form-control form-control-sm"
-                        v-model="nuevaFila.valores && nuevaFila.valores[columna.nombre]"
+                        v-model="nuevaFila.valores[columna.nombre]"
                         :placeholder="'Buscar en ' + columna.seccionRelacionada"
                         @input="filtrarOpcionesNuevaFila($event, columna)"
                         @focus="mostrarOpcionesNueva(columna)"
@@ -207,7 +225,7 @@
                     <input
                       type="number"
                       class="form-control form-control-sm"
-                      v-model="nuevaFila.valores && nuevaFila.valores[columna.nombre]"
+                      v-model="nuevaFila.valores[columna.nombre]"
                       :placeholder="'Nuevo ' + columna.nombre"
                       @keyup.enter="agregarFila"
                     >
@@ -216,7 +234,7 @@
                     <input
                       type="date"
                       class="form-control form-control-sm"
-                      v-model="nuevaFila.valores && nuevaFila.valores[columna.nombre]"
+                      v-model="nuevaFila.valores[columna.nombre]"
                       :placeholder="'Nuevo ' + columna.nombre"
                       @keyup.enter="agregarFila"
                     >
@@ -225,7 +243,7 @@
                     <input
                       type="text"
                       class="form-control form-control-sm"
-                      v-model="nuevaFila.valores && nuevaFila.valores[columna.nombre]"
+                      v-model="nuevaFila.valores[columna.nombre]"
                       :placeholder="'Nuevo ' + columna.nombre"
                       @keyup.enter="agregarFila"
                     >
@@ -450,11 +468,15 @@ export default {
     const campoAcordeonAbierto = ref(null)
     const mensajeExitoCampo = ref('')
     const cargando = ref(true)
+    const refreshKey = ref(0)
     
     // Variables para el buscador de campos relacionales
     const opcionesVisibles = reactive({})
     const opcionesFiltradas = reactive({})
     const busquedasActuales = reactive({})
+
+    // Estado de edición por fila
+    const filaEditando = ref(null)
 
     // Computed para obtener la sección actual
     const seccionActual = computed(() => {
@@ -504,7 +526,10 @@ export default {
           const registros = await seccionesDinamicasService.getRegistros(seccion._id || seccion.id)
           // registros es un array de objetos, cada uno con .valores
           seccion.datos = Array.isArray(registros)
-            ? registros.map(r => ({ ...r, valores: r.valores || {} }))
+            ? registros.map(r => {
+                const valores = r.valores || {}
+                return { ...r, valores, _original: { ...valores } }
+              })
             : []
         }
         inicializarNuevaFila()
@@ -860,6 +885,40 @@ export default {
       }
     }
 
+    // Guardar fila editada
+    const guardarFilaEditada = async (fila, filaIndex) => {
+      if (!seccionActual.value || !fila._id) return
+      try {
+        const res = await seccionesDinamicasService.updateRegistro(
+          seccionActual.value._id || seccionActual.value.id,
+          fila._id,
+          { valores: fila.valores }
+        )
+        // Refrescar solo la fila editada en el array local y actualizar _original
+        if (res && res.valores) {
+          Object.assign(fila.valores, res.valores)
+          fila._original = { ...res.valores }
+        } else {
+          fila._original = { ...fila.valores }
+        }
+      } catch (e) {
+        alert('Error al guardar los cambios de la fila')
+      }
+    }
+
+    // Revertir cambios de una fila
+    const revertirFila = (fila, filaIndex) => {
+      fila.valores = { ...fila._original }
+      refreshKey.value++
+    }
+
+    // Forzar reactividad al hacer focus out
+    const onFocusOut = (fila) => {
+      fila.valores = { ...fila.valores }
+      fila._editando = true
+      refreshKey.value++
+    }
+
     // Watchers
     watch(() => props.sectionName, () => {
       inicializarNuevaFila()
@@ -919,6 +978,11 @@ export default {
       mensajeExitoCampo,
       cargando,
       actualizarRegistro,
+      guardarFilaEditada,
+      revertirFila,
+      onFocusOut,
+      refreshKey,
+      filaEditando,
     }
   }
 }
@@ -1256,6 +1320,18 @@ export default {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s ease;
+  height: 35px;
+  width: 35px;
+}
+
+.btn-edit {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  height: 35px;
+  width: 35px;
 }
 
 .btn-delete:hover {

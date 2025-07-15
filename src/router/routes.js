@@ -28,6 +28,7 @@ import EmpleadosUsuarios from "@/pages/EmpleadosUsuarios.vue";
 import Facturacion from "@/pages/Facturacion.vue";
 import CobrosPagos from "@/pages/CobrosPagos.vue";
 import SeguridadPermisos from "@/pages/SeguridadPermisos.vue";
+import CrmDinamico from "@/pages/CrmDinamico.vue";
 
 Vue.use(Router);
 
@@ -106,6 +107,17 @@ const routes = [
         path: "seguridad-permisos",
         name: "seguridad-permisos",
         component: SeguridadPermisos,
+      },
+      {
+        path: "crm-dinamico",
+        name: "crm-dinamico",
+        component: CrmDinamico,
+      },
+      {
+        path: "crm-seccion/:sectionName",
+        name: "crm-seccion",
+        component: () => import("@/pages/CrmSeccion.vue"),
+        props: true,
       },
     ],
   },

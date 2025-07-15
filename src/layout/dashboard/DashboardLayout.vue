@@ -8,9 +8,8 @@
         <template slot="links">
           <!-- Links normales (sin children) -->
           <sidebar-link
-            v-for="(route, index) in routes"
+            v-for="(route, index) in routesWithoutChildren"
             :key="index"
-            v-if="!route.children"
             :to="route.path"
             :name="route.name"
             :icon="route.icon"
@@ -52,6 +51,16 @@
               />
             </div>
           </div>
+          <!-- Rutas dinámicas del CRM -->
+          <sidebar-link
+            v-for="(route, index) in crmRoutes"
+            :key="`crm-${index}`"
+            :to="route.path"
+            :name="route.name"
+            :icon="route.icon"
+            v-bind:style="{ display: needShow(route.path) ? 'block' : 'none' }"
+            :class="currentPage === getCrmRouteIndex(route.path) ? 'currentPage' : ''"
+          />
           
           <div @click="logout" class="mt-2" style="width: 100%;">
             <sidebar-link
@@ -112,6 +121,7 @@ import { getFirestore, doc, setDoc, getDocs, collection } from "firebase/firesto
 import ContentFooter from "./ContentFooter.vue";
 import DashboardContent from "./Content.vue";
 import MobileMenu from "./MobileMenu";
+import { seccionesDinamicasService } from '@/services/api/queries'
 
 export default {
   components: {
@@ -130,28 +140,10 @@ export default {
         user: null
       },
       routesWatch: [],
+      crmSections: [],
       routes: [
-        // { path: '/dashboard', name: 'Dashboard', icon: 'ti-panel' },
-        // { path: '/mis-casos', name: 'Mis Casos', icon: 'ti-panel' },
-        // { path: '/mis-casos-abogados', name: 'Mis Casos', icon: 'ti-panel' },
-        // { path: '/seguimiento-casos', name: 'Seguimiento casos', icon: 'ti-panel' },
+        { path: '/dashboard', name: 'Dashboard', icon: 'ti-panel' },
         { path: '/listado-clientes', name: 'Listado clientes', icon: 'ti-infinite' },
-        // { path: '/listado-clientes-llamar', name: 'Clientes por llamar', icon: 'ti-headphone-alt' },
-        // { path: '/listado-clientes-sin-abogado', name: 'Clientes sin abogado', icon: 'ti-headphone-alt' },
-        // { path: '/casos-sin-asignar', name: 'Casos sin asignar', icon: 'ti-eye' },
-        // { path: '/clientes-sin-presupuesto', name: 'Clientes sin presupuesto', icon: 'ti-write' },
-        // { path: '/clientes-presupuesto-pendiente', name: 'Clientes presupuesto pte', icon: 'ti-agenda' },
-        // { path: '/presupuestos-aceptados', name: 'Presupuestos Aceptados', icon: 'ti-thumb-up' },
-        // { path: '/listado-especialistas', name: 'Listado especialistas', icon: 'ti-briefcase' },
-        // { path: '/listado-despachos', name: 'Listado despachos', icon: 'ti-infinite' },
-        // { path: '/alta-clientes', name: 'Alta clientes', icon: 'ti-user' },
-        // { path: '/alta-especialista', name: 'Alta especialista', icon: 'ti-user' },
-        // { path: '/alta-despacho', name: 'Alta despacho', icon: 'ti-user' },
-        // { path: '/citas', name: 'Citas', icon: 'ti-calendar' },
-        // { path: '/calendario', name: 'Calendario', icon: 'ti-calendar' },
-        // { path: '/calendario-remesas', name: 'Calendario Remesas', icon: 'ti-money' },
-        // { path: '/listado-notificaciones-chats', name: 'Listado Notificaciones', icon: 'ti-infinite' },
-        // { path: '/historico-login', name: 'Historico Accesos', icon: 'ti-infinite' },
         { 
           path: '#', // Sin ruta directa, solo contenedor
           name: 'Agenda y Citas', 
@@ -159,10 +151,21 @@ export default {
           isDropdown: true, // Identificar que es un menú desplegable
           children: [
             { path: '/listado-citas', name: 'Listado de Citas', icon: 'ti-list' },
-            { path: '/agenda', name: 'Agenda', icon: 'ti-calendar' }
+            { path: '/agenda', name: 'Agenda', icon: 'ti-calendar' },
+            { path: '/agenda-citas', name: 'Agenda de Citas', icon: 'ti-calendar' }
           ]
         },
-        { path: '/servicios-productos', name: 'Servicios/Productos', icon: 'ti-briefcase' },
+        { 
+          path: '#', // Sin ruta directa, solo contenedor
+          name: 'Servicios y Productos', 
+          icon: 'ti-briefcase',
+          isDropdown: true, // Identificar que es un menú desplegable
+          children: [
+            { path: '/listado-servicios', name: 'Listado de Servicios', icon: 'ti-list' },
+            { path: '/listado-productos', name: 'Listado de Productos', icon: 'ti-list' },
+            { path: '/listado-categorias', name: 'Listado de Categorías', icon: 'ti-list' }
+          ]
+        },
         { 
           path: '#', // Sin ruta directa, solo contenedor
           name: 'Facturación y Pagos', 
@@ -175,10 +178,17 @@ export default {
         },
         { path: '/empleados-usuarios', name: 'Empleados/Usuarios', icon: 'ti-user' },
         { path: '/seguridad-permisos', name: 'Seguridad/Permisos', icon: 'ti-shield' },
+        { path: '/crm-dinamico', name: 'CRM Dinámico', icon: 'ti-settings' },
       ],
       routesWithChildren: [],
       openDropdowns: [],
+      crmRoutes: [],
     };
+  },
+  computed: {
+    routesWithoutChildren() {
+      return this.routes.filter(route => !route.children);
+    }
   },
   methods: {
     toggleSidebar() {
@@ -188,6 +198,8 @@ export default {
     },
     needShow(route) {
       if (route === '#' || route === undefined) return true;
+      // Mostrar siempre las rutas del CRM
+      if (route.startsWith('/crm-seccion/')) return true;
       const routeFix = route.replace('/', '');
       return this.routesWatch.some(rt => rt.path === routeFix && rt.visibility === true);
     },
@@ -264,6 +276,36 @@ export default {
         }
       }
     },
+    async loadCrmSections() {
+      // Cargar secciones del CRM desde el backend
+      try {
+        const res = await seccionesDinamicasService.getAll()
+        this.crmSections = Array.isArray(res) ? res : (res.data || [])
+        this.generateCrmRoutes();
+      } catch (error) {
+        this.crmSections = [];
+        this.crmRoutes = [];
+        console.error('Error al cargar secciones del CRM:', error);
+      }
+    },
+    generateCrmRoutes() {
+      this.crmRoutes = this.crmSections.map(section => ({
+        path: `/crm-seccion/${this.sanitizePath(section.nombre)}`,
+        name: section.nombre,
+        icon: 'ti-folder',
+        sectionId: section._id || section.id || section.nombre
+      }));
+    },
+    sanitizePath(name) {
+      // Convertir nombre a path válido
+      return name.toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    },
+    getCrmRouteIndex(path) {
+      return this.crmRoutes.findIndex(route => route.path === path);
+    },
   },
   async mounted() {
     // console.log(this.$route)
@@ -278,7 +320,25 @@ export default {
     this.currentPage = this.routes.findIndex(route => route.path === this.$route.path);
     this.separateRoutes();
     this.checkAutoOpenDropdown();
-    this.checkLogIn()
+    await this.loadCrmSections();
+    this.checkLogIn();
+    
+    // Cargar secciones del CRM después de un pequeño delay para asegurar que todo esté listo
+    setTimeout(() => {
+      this.loadCrmSections();
+    }, 500);
+    
+    // Escuchar cambios en localStorage para actualizar las rutas del CRM
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'crmSecciones') {
+        this.loadCrmSections();
+      }
+    });
+    
+    // Escuchar evento personalizado para actualizar desde la misma pestaña
+    window.addEventListener('crmSectionsUpdated', () => {
+      this.loadCrmSections();
+    });
   },
   watch: {
     '$route'(to, from) {
@@ -286,6 +346,12 @@ export default {
       // Aquí puedes realizar cualquier acción adicional, como actualizar el estado de la página actual.
       this.currentPage = this.routes.findIndex(route => route.path === to.path);
       this.checkAutoOpenDropdown();
+      
+      // Verificar si es una ruta del CRM
+      const crmRouteIndex = this.getCrmRouteIndex(to.path);
+      if (crmRouteIndex !== -1) {
+        this.currentPage = crmRouteIndex;
+      }
     },
     'authState.isAuthenticated'(newValue) {
       if (newValue) {

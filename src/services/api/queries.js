@@ -192,3 +192,33 @@ export const archivosService = {
   // Eliminar archivo - ID en la URL
   delete: (id) => restService.delete(`/archivos/${id}`)
 } 
+
+// Servicios para Secciones Dinámicas
+export const seccionesDinamicasService = {
+  // Obtener todas las secciones y su estructura
+  getAll: (params = {}) => restService.get('/secciones-dinamicas', params),
+
+  // Obtener una sección por ID
+  getById: (id) => restService.get(`/secciones-dinamicas/${id}`),
+
+  // Crear nueva sección
+  create: (data) => restService.post('/secciones-dinamicas', data),
+
+  // Actualizar sección (estructura/campos)
+  update: (id, data) => restService.put(`/secciones-dinamicas/${id}`, data),
+
+  // Eliminar sección
+  delete: (id) => restService.delete(`/secciones-dinamicas/${id}`),
+
+  // Obtener registros de una sección
+  getRegistros: (seccionId, params = {}) => restService.get(`/secciones-dinamicas/${seccionId}/registros`, params),
+
+  // Crear registro en una sección
+  createRegistro: (seccionId, data) => restService.post(`/secciones-dinamicas/${seccionId}/registros`, data),
+
+  // Actualizar registro
+  updateRegistro: (seccionId, registroId, data) => restService.put(`/secciones-dinamicas/${seccionId}/registros/${registroId}`, data),
+
+  // Eliminar registro
+  deleteRegistro: (seccionId, registroId) => restService.delete(`/secciones-dinamicas/${seccionId}/registros/${registroId}`)
+} 

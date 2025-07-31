@@ -220,7 +220,22 @@ export const seccionesDinamicasService = {
   updateRegistro: (seccionId, registroId, data) => restService.put(`/secciones-dinamicas/${seccionId}/registros/${registroId}`, data),
 
   // Eliminar registro
-  deleteRegistro: (seccionId, registroId) => restService.delete(`/secciones-dinamicas/${seccionId}/registros/${registroId}`)
+  deleteRegistro: (seccionId, registroId) => restService.delete(`/secciones-dinamicas/${seccionId}/registros/${registroId}`),
+
+  // Guardar configuración del calendario
+  saveCalendarConfig: (seccionId, calendarConfig) => restService.post(`/secciones-dinamicas/${seccionId}/calendar-config`, calendarConfig),
+
+  // Obtener configuraciones de calendario de una sección
+  getCalendarConfigs: (seccionId) => restService.get(`/secciones-dinamicas/${seccionId}/calendar-config`),
+
+  // Actualizar configuración específica de calendario
+  updateCalendarConfig: (seccionId, calendarId, calendarConfig) => restService.put(`/secciones-dinamicas/${seccionId}/calendar-config/${calendarId}`, calendarConfig),
+
+  // Eliminar configuración de calendario
+  deleteCalendarConfig: (seccionId, calendarId) => restService.delete(`/secciones-dinamicas/${seccionId}/calendar-config/${calendarId}`),
+
+  // Obtener datos del calendario
+  getCalendarData: (seccionId, params = {}) => restService.get(`/secciones-dinamicas/${seccionId}/citas`, params)
 } 
 
 // Lookup de plataforma por correo

@@ -50,9 +50,25 @@
       <div class="table-section">
         <div class="table-header">
           <h2>Gestión de Campos</h2>
-          <button class="btn-config" @click="showFieldsModal = true">
-            <i class="ti-settings"></i> Configurar Campos
-          </button>
+          <div class="header-actions">
+            <button class="btn-config" @click="showFieldsModal = true">
+              <i class="ti-settings"></i> Configurar Campos
+            </button>
+            <button 
+              v-if="hasDateField && !calendarEnabled" 
+              class="btn-calendar" 
+              @click="showCalendarSettings = true"
+            >
+              <i class="ti-calendar"></i> Habilitar Calendario
+            </button>
+            <button 
+              v-if="calendarEnabled" 
+              class="btn-calendar-config" 
+              @click="showCalendarSettings = true"
+            >
+              <i class="ti-settings"></i> Configurar Calendario
+            </button>
+          </div>
         </div>
         <div class="fields-summary">
           <div class="summary-stats">
@@ -84,8 +100,29 @@
         </div>
       </div>
 
-      <!-- Tabla de la sección -->
-      <div class="table-section">
+      <!-- Selector de vista -->
+      <div class="view-selector-section">
+        <div class="view-tabs">
+          <button 
+            class="view-tab" 
+            :class="{ active: currentView === 'table' }"
+            @click="currentView = 'table'"
+          >
+            <i class="ti-list"></i> Tabla
+          </button>
+          <button 
+            class="view-tab" 
+            :class="{ active: currentView === 'calendar' }"
+            @click="currentView = 'calendar'"
+            v-if="calendarEnabled"
+          >
+            <i class="ti-calendar"></i> Calendario
+          </button>
+        </div>
+      </div>
+
+      <!-- Vista de tabla -->
+      <div v-if="currentView === 'table'" class="table-section">
         <div class="table-header">
           <h2>Datos de {{ seccionActual.nombre }}</h2>
           <span class="record-count">{{ seccionActual.datos ? seccionActual.datos.length : 0 }} registros</span>
@@ -258,6 +295,69 @@
           </table>
         </div>
       </div>
+
+      <!-- Vista de calendario -->
+      <div v-if="currentView === 'calendar'" class="calendar-section">
+        <!-- Selector de calendarios -->
+        <div v-if="calendarConfigs.length > 1" class="calendar-selector">
+          <h6>Calendarios de {{ seccionActual.nombre }}:</h6>
+          <div class="calendar-tabs">
+            <button
+              v-for="calendar in calendarConfigs"
+              :key="calendar._id"
+              class="calendar-tab"
+              :class="{ active: selectedCalendar && selectedCalendar._id === calendar._id }"
+              @click="selectCalendar(calendar)"
+            >
+              <span class="calendar-color" :style="{ backgroundColor: calendar.defaultColor }"></span>
+              {{ calendar.title }}
+              <span v-if="!calendar.enabled" class="disabled-badge">Deshabilitado</span>
+            </button>
+          </div>
+        </div>
+        
+        <div class="table-header">
+          <h2>{{ calendarTitle || 'Calendario' }}</h2>
+          <div class="calendar-controls">
+            <span class="record-count">{{ calendarEvents.length }} eventos</span>
+            <button class="btn-config" @click="showCalendarSettings = true">
+              <i class="ti-settings"></i> Configurar Calendario
+            </button>
+          </div>
+        </div>
+        
+        <!-- Debug info -->
+        <div class="debug-info">
+          <h6>Estado del Calendario:</h6>
+          <p>✅ Calendario habilitado: {{ calendarEnabled }}</p>
+          <p>📅 Campo de fecha: {{ dateFieldName || 'No configurado' }}</p>
+          <p>📝 Campo de título: {{ titleFieldName || 'No configurado' }}</p>
+          <p>📊 Eventos disponibles: {{ calendarEvents.length }}</p>
+          <p>👁️ Vista actual: {{ currentView }}</p>
+          <button class="btn-test" @click="currentView = 'calendar'">
+            🔄 Forzar Vista Calendario
+          </button>
+        </div>
+        
+                  <CalendarView 
+            v-if="calendarEnabled && dateFieldName && titleFieldName"
+            :events="calendarEvents"
+            :date-field="dateFieldName"
+            :title-field="titleFieldName"
+            :available-fields="{}"
+            :loading="calendarLoading"
+            @add-event="addCalendarEvent"
+            @update-event="updateCalendarEvent"
+            @delete-event="deleteCalendarEvent"
+            @month-changed="loadCalendarData"
+          />
+        
+        <div v-if="calendarEnabled && dateFieldName && titleFieldName && calendarEvents.length === 0" class="no-events">
+          <i class="ti-calendar" style="font-size: 3rem; color: #ccc; margin-bottom: 15px;"></i>
+          <h6>No hay eventos en el calendario</h6>
+          <p>Agrega algunos registros con fechas para verlos en el calendario.</p>
+        </div>
+      </div>
     </div>
     <div v-else class="main-content">
       <div class="table-section">
@@ -281,6 +381,165 @@
           <b-button variant="danger" @click="confirmarLimpiarSeccion" class="mr-2">Eliminar Todo</b-button>
           <b-button variant="secondary" @click="showClearModal = false">Cancelar</b-button>
         </div>
+      </div>
+    </b-modal>
+
+    <!-- Modal de configuración del calendario -->
+    <b-modal 
+      v-model="showCalendarSettings" 
+      title="Configuración del Calendario" 
+      size="lg"
+      hide-footer
+    >
+      <div class="calendar-settings">
+        <!-- Selección de calendario -->
+        <div class="setting-section">
+          <h5>Seleccionar Calendario</h5>
+          <p>Elige un calendario existente o crea uno nuevo:</p>
+          
+          <div class="calendar-selection">
+            <div class="calendar-options">
+              <div 
+                v-for="calendar in calendarConfigs" 
+                :key="calendar._id"
+                class="calendar-option"
+                :class="{ active: selectedCalendar && selectedCalendar._id === calendar._id }"
+                @click="selectCalendarFromModal(calendar)"
+              >
+                <div class="option-header">
+                  <span class="option-color" :style="{ backgroundColor: calendar.defaultColor }"></span>
+                  <span class="option-title">{{ calendar.title }}</span>
+                  <span v-if="!calendar.enabled" class="option-status">Deshabilitado</span>
+                </div>
+                <div class="option-details">
+                  <small>{{ calendar.dateField }} → {{ calendar.titleField }}</small>
+                </div>
+              </div>
+              
+              <div class="calendar-option new-option" @click="createNewCalendar">
+                <div class="option-header">
+                  <span class="option-icon">+</span>
+                  <span class="option-title">Crear Nuevo Calendario</span>
+                </div>
+                <div class="option-details">
+                  <small>Configurar desde cero</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configuración del calendario seleccionado -->
+        <div v-if="selectedCalendar || calendarEnabled" class="setting-section">
+          <h5>{{ selectedCalendar ? 'Configurar: ' + selectedCalendar.title : 'Nuevo Calendario' }}</h5>
+          <p>Configura los campos y opciones del calendario:</p>
+          
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                v-model="calendarEnabled"
+                @change="toggleCalendar"
+              >
+              <span class="checkmark"></span>
+              Habilitar calendario para esta sección
+            </label>
+          </div>
+        </div>
+
+        <div v-if="calendarEnabled" class="setting-section">
+          <h6>Configuración de Campos</h6>
+          
+          <div class="form-group">
+            <label>Título del calendario:</label>
+            <input
+              type="text"
+              class="form-control"
+              v-model="calendarTitle"
+              placeholder="Ej: Calendario de Citas, Eventos del Mes..."
+              :disabled="!calendarEnabled"
+              @input="onTitleChange"
+            >
+            <small class="text-muted">Valor actual: "{{ calendarTitle }}"</small>
+          </div>
+          
+          <div class="form-group">
+            <label>Campo de fecha:</label>
+            <select class="form-control" v-model="dateFieldName" :disabled="!calendarEnabled">
+              <option value="">Selecciona un campo de fecha</option>
+              <option v-for="columna in dateFields" :key="columna.nombre" :value="columna.nombre">
+                {{ columna.nombre }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Campo de título:</label>
+            <select class="form-control" v-model="titleFieldName" :disabled="!calendarEnabled">
+              <option value="">Selecciona un campo para el título</option>
+              <option v-for="columna in textFields" :key="columna.nombre" :value="columna.nombre">
+                {{ columna.nombre }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Campos para mostrar en el calendario:</label>
+            <div class="fields-checkboxes">
+              <div v-if="availableFieldsForCalendar.length === 0" class="no-fields">
+                <p>No hay campos adicionales disponibles para mostrar.</p>
+              </div>
+              <template v-else>
+                <div v-for="fieldName in availableFieldsForCalendar" :key="fieldName" class="field-checkbox">
+                  <label class="checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      :value="fieldName"
+                      v-model="selectedDisplayFields"
+                      :disabled="!calendarEnabled"
+                    >
+                    <span class="checkmark"></span>
+                    {{ fieldName }}
+                  </label>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Color por defecto:</label>
+            <select class="form-control" v-model="defaultEventColor">
+              <option value="#007bff">Azul</option>
+              <option value="#28a745">Verde</option>
+              <option value="#ffc107">Amarillo</option>
+              <option value="#dc3545">Rojo</option>
+              <option value="#6f42c1">Púrpura</option>
+              <option value="#fd7e14">Naranja</option>
+            </select>
+          </div>
+        </div>
+
+                  <div class="setting-actions">
+            <div class="config-status">
+              <span v-if="calendarEnabled && dateFieldName && titleFieldName" class="status-ok">
+                <i class="ti-check"></i> Configuración válida
+              </span>
+              <span v-else-if="calendarEnabled" class="status-warning">
+                <i class="ti-alert"></i> Campos requeridos incompletos
+              </span>
+              <span v-else class="status-disabled">
+                <i class="ti-close"></i> Calendario deshabilitado
+              </span>
+            </div>
+            <div class="action-buttons">
+              <button class="btn-save" @click="saveCalendarSettings">
+                <i class="ti-save"></i> Guardar en Servidor
+              </button>
+              <button class="btn-cancel" @click="showCalendarSettings = false">
+                <i class="ti-close"></i> Cancelar
+              </button>
+            </div>
+          </div>
       </div>
     </b-modal>
 
@@ -442,9 +701,13 @@
 <script>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { seccionesDinamicasService } from '@/services/api/queries'
+import CalendarView from '@/components/CalendarView.vue'
 
 export default {
   name: 'CrmSeccion',
+  components: {
+    CalendarView
+  },
   props: {
     sectionName: {
       type: String,
@@ -468,6 +731,22 @@ export default {
     const mensajeExitoCampo = ref('')
     const cargando = ref(true)
     const refreshKey = ref(0)
+    
+    // Variables para el calendario
+    const currentView = ref('table')
+    const dateFieldName = ref('')
+    const titleFieldName = ref('')
+    const calendarTitle = ref('')
+    const calendarEnabled = ref(false)
+    const showCalendarSettings = ref(false)
+    const calendarLoading = ref(false)
+    const defaultEventColor = ref('#007bff')
+    const currentCalendarMonth = ref(new Date())
+    const selectedDisplayFields = ref([])
+    const calendarConfigs = ref([])
+    const currentCalendarId = ref(null)
+    const selectedCalendar = ref(null)
+    const calendarData = ref([])
     
     // Variables para el buscador de campos relacionales
     const opcionesVisibles = reactive({})
@@ -514,6 +793,128 @@ export default {
         return nuevoCampo.seccionRelacionada && nuevoCampo.campoMostrar
       }
       return true
+    })
+
+    // Computed para el calendario
+    const hasDateField = computed(() => {
+      if (!seccionActual.value || !seccionActual.value.columnas) return false
+      return seccionActual.value.columnas.some(col => {
+        const columna = typeof col === 'string' ? { nombre: col, tipo: 'texto' } : col
+        return columna.tipo === 'fecha'
+      })
+    })
+
+    const dateFields = computed(() => {
+      if (!seccionActual.value || !seccionActual.value.columnas) return []
+      return seccionActual.value.columnas.filter(col => {
+        const columna = typeof col === 'string' ? { nombre: col, tipo: 'texto' } : col
+        return columna.tipo === 'fecha'
+      }).map(col => typeof col === 'string' ? { nombre: col } : col)
+    })
+
+    const textFields = computed(() => {
+      if (!seccionActual.value || !seccionActual.value.columnas) return []
+      return seccionActual.value.columnas.filter(col => {
+        const columna = typeof col === 'string' ? { nombre: col, tipo: 'texto' } : col
+        return columna.tipo === 'texto'
+      }).map(col => typeof col === 'string' ? { nombre: col } : col)
+    })
+
+    const calendarEvents = computed(() => {
+      console.log('=== DEBUG CALENDAR ===')
+      console.log('Calendario habilitado:', calendarEnabled.value)
+      console.log('Campo fecha:', dateFieldName.value)
+      console.log('Campo título:', titleFieldName.value)
+      console.log('Datos del calendario:', calendarData.value.length)
+      
+      if (!calendarEnabled.value || !calendarData.value || calendarData.value.length === 0) {
+        console.log('❌ No se pueden generar eventos')
+        return []
+      }
+      
+              const events = calendarData.value.map(registro => {
+          console.log('Procesando registro:', registro)
+          console.log('Campos disponibles:', Object.keys(registro))
+          console.log('Campos seleccionados para mostrar:', selectedDisplayFields.value)
+          
+          // Los datos del endpoint de citas vienen con estructura directa
+          // Verificar si tiene la estructura esperada
+          const hasValores = registro.valores && typeof registro.valores === 'object'
+          const hasDirectProps = registro.title && registro.date && registro.id
+          
+          let displayTitle, eventDate, eventColor, eventData
+          
+          if (hasValores) {
+            // Estructura con .valores
+            displayTitle = registro.valores[titleFieldName.value] || 'Sin título'
+            eventDate = registro.valores[dateFieldName.value]
+            eventColor = registro.valores.color || defaultEventColor.value
+            eventData = registro.valores
+            
+            // Agregar campos adicionales al título
+            if (selectedDisplayFields.value.length > 0) {
+              const additionalFields = selectedDisplayFields.value
+                .map(field => registro.valores[field])
+                .filter(value => value && value.trim() !== '')
+                .join(' - ')
+              
+              if (additionalFields) {
+                displayTitle = `${displayTitle} (${additionalFields})`
+              }
+            }
+          } else if (hasDirectProps) {
+            // Estructura directa (como viene del endpoint de citas)
+            displayTitle = registro[titleFieldName.value] || registro.title || 'Sin título'
+            eventDate = registro[dateFieldName.value] || registro.date
+            eventColor = registro.color || defaultEventColor.value
+            eventData = registro
+            
+            // Agregar campos adicionales al título
+            if (selectedDisplayFields.value.length > 0) {
+              const additionalFields = selectedDisplayFields.value
+                .map(field => {
+                  // Buscar el campo en el registro
+                  const value = registro[field]
+                  console.log(`Campo ${field}:`, value)
+                  return value
+                })
+                .filter(value => value && value.toString().trim() !== '')
+                .join(' - ')
+              
+              if (additionalFields) {
+                displayTitle = `${displayTitle} (${additionalFields})`
+              }
+            }
+          } else {
+            console.warn('Estructura de registro no reconocida:', registro)
+            return null
+          }
+          
+          const event = {
+            id: registro._id || registro.id,
+            title: displayTitle,
+            date: eventDate,
+            color: eventColor,
+            data: eventData
+          }
+          
+          console.log('Evento generado:', event)
+          return event
+        }).filter(event => event && event.date) // Solo eventos válidos con fecha
+      
+      console.log('✅ Eventos generados:', events.length)
+      return events
+    })
+
+    const availableFieldsForCalendar = computed(() => {
+      if (!seccionActual.value || !seccionActual.value.columnas) return []
+      
+      return seccionActual.value.columnas.map(col => {
+        const columna = typeof col === 'string' ? { nombre: col, tipo: 'texto' } : col
+        return columna.nombre
+      }).filter(fieldName => 
+        fieldName !== dateFieldName.value && fieldName !== titleFieldName.value
+      )
     })
 
     // Cargar secciones desde backend
@@ -936,11 +1337,409 @@ export default {
       nuevoCampo.campoMostrar = ''
     })
 
+    watch(() => seccionActual.value, () => {
+      if (seccionActual.value) {
+        initializeCalendarFields()
+      }
+    })
+
+    // Funciones para el calendario
+    const addCalendarEvent = async (eventData) => {
+      if (!seccionActual.value) return
+      
+      try {
+        const res = await seccionesDinamicasService.createRegistro(
+          seccionActual.value._id || seccionActual.value.id,
+          { valores: eventData }
+        )
+        
+        if (seccionActual.value.datos && Array.isArray(seccionActual.value.datos)) {
+          seccionActual.value.datos.push(res)
+        } else {
+          seccionActual.value.datos = [res]
+        }
+      } catch (e) {
+        alert('Error al agregar evento')
+      }
+    }
+
+    const updateCalendarEvent = async (eventData) => {
+      if (!seccionActual.value) return
+      
+      try {
+        await seccionesDinamicasService.updateRegistro(
+          seccionActual.value._id || seccionActual.value.id,
+          eventData.id,
+          { valores: eventData.data }
+        )
+        
+        // Actualizar el registro en el array local
+        const index = seccionActual.value.datos.findIndex(r => r._id === eventData.id)
+        if (index !== -1) {
+          seccionActual.value.datos[index].valores = eventData.data
+        }
+      } catch (e) {
+        alert('Error al actualizar evento')
+      }
+    }
+
+    const deleteCalendarEvent = async (eventData) => {
+      if (!seccionActual.value) return
+      
+      try {
+        await seccionesDinamicasService.deleteRegistro(
+          seccionActual.value._id || seccionActual.value.id,
+          eventData.id
+        )
+        
+        // Eliminar el registro del array local
+        const index = seccionActual.value.datos.findIndex(r => r._id === eventData.id)
+        if (index !== -1) {
+          seccionActual.value.datos.splice(index, 1)
+        }
+      } catch (e) {
+        alert('Error al eliminar evento')
+      }
+    }
+
+    const onTitleChange = () => {
+      console.log('🔄 Título cambiado:', calendarTitle.value)
+      console.log('🔄 Tipo:', typeof calendarTitle.value)
+      console.log('🔄 Longitud:', calendarTitle.value ? calendarTitle.value.length : 0)
+    }
+
+    const selectCalendar = (calendar) => {
+      console.log('🎯 Seleccionando calendario:', calendar.title)
+      
+      selectedCalendar.value = calendar
+      calendarEnabled.value = calendar.enabled
+      calendarTitle.value = calendar.title
+      dateFieldName.value = calendar.dateField
+      titleFieldName.value = calendar.titleField
+      defaultEventColor.value = calendar.defaultColor
+      selectedDisplayFields.value = calendar.displayFields || []
+      
+      // Cargar datos del calendario seleccionado
+      const now = new Date()
+      loadCalendarData(now.getFullYear(), now.getMonth() + 1)
+    }
+
+    const selectCalendarFromModal = (calendar) => {
+      console.log('🎯 Seleccionando calendario desde modal:', calendar.title)
+      
+      selectedCalendar.value = calendar
+      calendarEnabled.value = calendar.enabled
+      calendarTitle.value = calendar.title
+      dateFieldName.value = calendar.dateField
+      titleFieldName.value = calendar.titleField
+      defaultEventColor.value = calendar.defaultColor
+      selectedDisplayFields.value = calendar.displayFields || []
+    }
+
+    const createNewCalendar = () => {
+      console.log('➕ Creando nuevo calendario')
+      
+      selectedCalendar.value = null
+      calendarEnabled.value = true
+      calendarTitle.value = ''
+      dateFieldName.value = ''
+      titleFieldName.value = ''
+      defaultEventColor.value = '#007bff'
+      selectedDisplayFields.value = []
+    }
+
+    const initializeCalendarFields = () => {
+      if (!seccionActual.value || !seccionActual.value.columnas) {
+        console.log('No se puede inicializar calendario: sección no encontrada o sin columnas')
+        return
+      }
+      
+      console.log('Inicializando campos del calendario...')
+      console.log('Columnas disponibles:', seccionActual.value.columnas)
+      
+      // Cargar configuración guardada
+      const savedConfig = seccionActual.value.calendarConfig
+      if (savedConfig) {
+        console.log('📋 Configuración guardada encontrada:', savedConfig)
+        calendarEnabled.value = savedConfig.enabled || false
+        calendarTitle.value = savedConfig.title || ''
+        dateFieldName.value = savedConfig.dateField || ''
+        titleFieldName.value = savedConfig.titleField || ''
+        defaultEventColor.value = savedConfig.defaultColor || '#007bff'
+        selectedDisplayFields.value = savedConfig.displayFields || []
+        console.log('✅ Configuración cargada:', {
+          enabled: calendarEnabled.value,
+          title: calendarTitle.value,
+          dateField: dateFieldName.value,
+          titleField: titleFieldName.value,
+          displayFields: selectedDisplayFields.value
+        })
+        
+        // Cargar datos del calendario si está habilitado
+        if (calendarEnabled.value) {
+          const now = new Date()
+          loadCalendarData(now.getFullYear(), now.getMonth() + 1)
+        }
+      } else {
+        console.log('No hay configuración guardada, usando configuración por defecto')
+        // Configuración por defecto
+        const dateField = seccionActual.value.columnas.find(col => {
+          const columna = typeof col === 'string' ? { nombre: col, tipo: 'texto' } : col
+          return columna.tipo === 'fecha'
+        })
+        
+        if (dateField) {
+          dateFieldName.value = typeof dateField === 'string' ? dateField : dateField.nombre
+          console.log('Campo de fecha encontrado:', dateFieldName.value)
+        } else {
+          console.log('No se encontró campo de fecha')
+        }
+        
+        const titleField = seccionActual.value.columnas.find(col => {
+          const columna = typeof col === 'string' ? { nombre: col, tipo: 'texto' } : col
+          return columna.tipo === 'texto'
+        })
+        
+        if (titleField) {
+          titleFieldName.value = typeof titleField === 'string' ? titleField : titleField.nombre
+          console.log('Campo de título encontrado:', titleFieldName.value)
+        } else {
+          console.log('No se encontró campo de título')
+        }
+      }
+      
+      console.log('Estado final del calendario:')
+      console.log('- Habilitado:', calendarEnabled.value)
+      console.log('- Campo fecha:', dateFieldName.value)
+      console.log('- Campo título:', titleFieldName.value)
+    }
+
+    const toggleCalendar = () => {
+      if (!calendarEnabled.value) {
+        dateFieldName.value = ''
+        titleFieldName.value = ''
+        calendarTitle.value = ''
+        selectedDisplayFields.value = []
+        defaultEventColor.value = '#007bff'
+      } else {
+        // Cargar datos del mes actual cuando se habilita el calendario
+        const now = new Date()
+        loadCalendarData(now.getFullYear(), now.getMonth() + 1)
+      }
+    }
+
+
+
+    const saveCalendarSettings = async () => {
+      if (!seccionActual.value) {
+        alert('No se encontró la sección actual')
+        return
+      }
+      
+              if (calendarEnabled.value) {
+          console.log('🔍 Validando configuración del calendario:')
+          console.log('- Título (tipo):', typeof calendarTitle.value)
+          console.log('- Título (valor):', calendarTitle.value)
+          console.log('- Título (longitud):', calendarTitle.value ? calendarTitle.value.length : 0)
+          console.log('- Campo fecha:', dateFieldName.value)
+          console.log('- Campo título:', titleFieldName.value)
+          
+          const titleEmpty = !calendarTitle.value || calendarTitle.value.trim() === ''
+          const dateEmpty = !dateFieldName.value
+          const titleFieldEmpty = !titleFieldName.value
+          
+          console.log('- Título vacío:', titleEmpty)
+          console.log('- Fecha vacía:', dateEmpty)
+          console.log('- Campo título vacío:', titleFieldEmpty)
+          
+          if (titleEmpty || dateEmpty || titleFieldEmpty) {
+            let missingFields = []
+            if (titleEmpty) missingFields.push('título del calendario')
+            if (dateEmpty) missingFields.push('campo de fecha')
+            if (titleFieldEmpty) missingFields.push('campo de título')
+            
+            alert(`Por favor completa: ${missingFields.join(', ')}`)
+            return
+          }
+        }
+      
+      try {
+        console.log('💾 Guardando configuración del calendario...')
+        console.log('Configuración:', {
+          seccionId: seccionActual.value._id || seccionActual.value.id,
+          seccionNombre: seccionActual.value.nombre,
+          title: calendarTitle.value,
+          enabled: calendarEnabled.value,
+          dateField: dateFieldName.value,
+          titleField: titleFieldName.value,
+          defaultColor: defaultEventColor.value,
+          displayFields: selectedDisplayFields.value
+        })
+        
+        // Guardar configuración en la sección
+        seccionActual.value.calendarConfig = {
+          seccionId: seccionActual.value._id || seccionActual.value.id,
+          seccionNombre: seccionActual.value.nombre,
+          title: calendarTitle.value,
+          enabled: calendarEnabled.value,
+          dateField: dateFieldName.value,
+          titleField: titleFieldName.value,
+          defaultColor: defaultEventColor.value,
+          displayFields: selectedDisplayFields.value
+        }
+        
+        // Enviar al servidor
+              const response = await seccionesDinamicasService.saveCalendarConfig(
+        seccionActual.value._id || seccionActual.value.id,
+        {
+          seccionId: seccionActual.value._id || seccionActual.value.id,
+          seccionNombre: seccionActual.value.nombre,
+          title: calendarTitle.value,
+          enabled: calendarEnabled.value,
+          dateField: dateFieldName.value,
+          titleField: titleFieldName.value,
+          defaultColor: defaultEventColor.value,
+          displayFields: selectedDisplayFields.value
+        }
+      )
+        
+        console.log('✅ Configuración guardada en el servidor:', response)
+        
+        showCalendarSettings.value = false
+        
+        // Mostrar mensaje de éxito
+        const successMessage = calendarEnabled.value 
+          ? 'Calendario habilitado y configurado correctamente'
+          : 'Calendario deshabilitado correctamente'
+        
+        alert(successMessage)
+        
+        // Recargar la sección para asegurar sincronización
+        await cargarSecciones()
+        
+        // Verificar que la configuración se guardó correctamente
+        setTimeout(() => {
+          const currentConfig = seccionActual.value && seccionActual.value.calendarConfig
+          if (currentConfig) {
+            console.log('🔍 Verificación: Configuración actual en la sección:', currentConfig)
+          } else {
+            console.warn('⚠️ Advertencia: No se encontró configuración después de guardar')
+          }
+        }, 1000)
+        
+      } catch (error) {
+        console.error('❌ Error al guardar configuración del calendario:', error)
+        alert(`Error al guardar la configuración: ${error.message || 'Error desconocido'}`)
+      }
+    }
+
+    const loadCalendarData = async (year, month) => {
+      if (!calendarEnabled.value || !seccionActual.value) return
+      
+      calendarLoading.value = true
+      try {
+        console.log('📅 Cargando datos del calendario...')
+        console.log('Sección:', seccionActual.value._id || seccionActual.value.id)
+        console.log('Mes:', month)
+        console.log('Año:', year)
+        console.log('Título del calendario:', calendarTitle.value)
+        
+        const params = {
+          month: month,
+          year: year
+        }
+        
+        // Agregar nombre del calendario si está configurado
+        if (calendarTitle.value && calendarTitle.value.trim()) {
+          params.name = calendarTitle.value
+        }
+        
+        console.log('Parámetros de búsqueda:', params)
+        
+        const response = await seccionesDinamicasService.getCalendarData(
+          seccionActual.value._id || seccionActual.value.id,
+          params
+        )
+        
+        console.log('✅ Respuesta del servidor:', response)
+        
+        // Extraer los datos de la respuesta
+        const calendarDataArray = response && response.data ? response.data : []
+        calendarData.value = calendarDataArray
+        
+        console.log('📅 Datos del calendario procesados:', calendarDataArray)
+        
+        currentCalendarMonth.value = new Date(year, month - 1, 1)
+        
+      } catch (e) {
+        console.error('❌ Error cargando datos del calendario:', e)
+      } finally {
+        calendarLoading.value = false
+      }
+    }
+
+    const loadCalendarConfigs = async () => {
+      if (!seccionActual.value) return
+      
+      try {
+        console.log('📅 Cargando configuraciones de calendario...')
+        console.log('Sección:', seccionActual.value._id || seccionActual.value.id)
+        
+        const response = await seccionesDinamicasService.getCalendarConfigs(
+          seccionActual.value._id || seccionActual.value.id
+        )
+        
+        // Extraer los datos de la respuesta
+        const configs = response && response.data ? response.data : response || []
+        calendarConfigs.value = configs
+        
+        console.log('✅ Configuraciones de calendario cargadas:', calendarConfigs.value)
+        console.log('📊 Total de calendarios:', calendarConfigs.value.length)
+        
+        // Si hay calendarios habilitados, cargar el primero por defecto
+        const enabledCalendars = calendarConfigs.value.filter(config => config.enabled)
+        if (enabledCalendars.length > 0) {
+          const firstEnabled = enabledCalendars[0]
+          console.log('🎯 Cargando primer calendario habilitado:', firstEnabled.title)
+          
+          // Cargar la configuración del primer calendario habilitado
+          calendarEnabled.value = firstEnabled.enabled
+          calendarTitle.value = firstEnabled.title
+          dateFieldName.value = firstEnabled.dateField
+          titleFieldName.value = firstEnabled.titleField
+          defaultEventColor.value = firstEnabled.defaultColor
+          selectedDisplayFields.value = firstEnabled.displayFields || []
+          
+          // Cargar datos del calendario
+          const now = new Date()
+          loadCalendarData(now.getFullYear(), now.getMonth() + 1)
+        }
+        
+      } catch (error) {
+        console.error('❌ Error cargando configuraciones de calendario:', error)
+        calendarConfigs.value = []
+      }
+    }
+
     // Inicializar al montar
     onMounted(() => {
       cargarSecciones()
       inicializarCamposNuevos()
       limpiarFormularioCampo()
+    })
+
+    // Cargar configuraciones de calendario cuando cambie la sección
+    watch(seccionActual, async (newSeccion) => {
+      if (newSeccion) {
+        await loadCalendarConfigs()
+      }
+    })
+
+    // Inicializar campos del calendario cuando se abra el modal
+    watch(showCalendarSettings, (isOpen) => {
+      if (isOpen) {
+        initializeCalendarFields()
+      }
     })
 
     return {
@@ -951,6 +1750,7 @@ export default {
       showClearModal,
       showFieldsModal,
       otrasSecciones,
+      calendarTitle,
       agregarCampo,
       agregarFila,
       eliminarFila,
@@ -984,6 +1784,54 @@ export default {
       onFocusOut,
       refreshKey,
       filaEditando,
+      // Variables y funciones del calendario
+      currentView,
+      hasDateField,
+      calendarEvents,
+      dateFieldName,
+      titleFieldName,
+      availableFieldsForCalendar,
+      calendarEnabled,
+      showCalendarSettings,
+      calendarLoading,
+      defaultEventColor,
+      selectedDisplayFields,
+      dateFields,
+      textFields,
+      addCalendarEvent,
+      updateCalendarEvent,
+      deleteCalendarEvent,
+      toggleCalendar,
+      saveCalendarSettings,
+      loadCalendarData,
+      loadCalendarConfigs,
+      initializeCalendarFields,
+      onTitleChange,
+      selectCalendar,
+      selectCalendarFromModal,
+      createNewCalendar,
+      calendarData,
+      calendarConfigs,
+      selectedCalendar,
+      currentView,
+      hasDateField,
+      calendarEvents,
+      dateFieldName,
+      titleFieldName,
+      availableFieldsForCalendar,
+      calendarEnabled,
+      showCalendarSettings,
+      calendarLoading,
+      defaultEventColor,
+      selectedDisplayFields,
+      dateFields,
+      textFields,
+      addCalendarEvent,
+      updateCalendarEvent,
+      deleteCalendarEvent,
+      toggleCalendar,
+      saveCalendarSettings,
+      loadCalendarData,
     }
   }
 }
@@ -1298,7 +2146,13 @@ export default {
   background: #a8a8a8;
 }
 
-/* Estilos para el botón de configuración */
+/* Estilos para los botones de configuración */
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .btn-config {
   background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
   color: white;
@@ -1316,6 +2170,44 @@ export default {
 .btn-config:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4);
+}
+
+.btn-calendar {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-calendar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+}
+
+.btn-calendar-config {
+  background: linear-gradient(135deg, #6f42c1 0%, #8e44ad 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-calendar-config:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(111, 66, 193, 0.4);
 }
 
 /* Estilos para el resumen de campos */
@@ -1595,6 +2487,254 @@ export default {
   color: #495057;
 }
 
+/* Estilos para el selector de vista */
+.view-selector-section {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.view-tab {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  color: #6c757d;
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.view-tab:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.view-tab.active {
+  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
+  color: white;
+  border-color: #1b6659;
+}
+
+.view-tab.active:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(27, 102, 89, 0.4);
+}
+
+.calendar-section {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  margin-bottom: 40px;
+}
+
+.calendar-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.debug-info {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.debug-info p {
+  margin: 5px 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.no-events {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6c757d;
+}
+
+.no-events h6 {
+  margin-bottom: 10px;
+  color: #495057;
+}
+
+.btn-test {
+  background: #ffc107;
+  color: #212529;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+.btn-test:hover {
+  background: #e0a800;
+}
+
+/* Estilos para el modal de configuración del calendario */
+.calendar-settings {
+  padding: 20px 0;
+}
+
+.setting-section {
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.setting-section:last-child {
+  border-bottom: none;
+}
+
+.setting-section h5 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.setting-section h6 {
+  color: #495057;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.setting-section p {
+  color: #6c757d;
+  margin-bottom: 15px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #495057;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #1b6659;
+}
+
+.fields-checkboxes {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 10px;
+  background: #f8f9fa;
+}
+
+.field-checkbox {
+  margin-bottom: 8px;
+}
+
+.field-checkbox:last-child {
+  margin-bottom: 0;
+}
+
+.field-checkbox .checkbox-label {
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.no-fields {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+}
+
+.no-fields p {
+  margin: 0;
+  font-style: italic;
+}
+
+.setting-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+.config-status {
+  display: flex;
+  justify-content: center;
+  padding: 10px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.status-ok {
+  color: #28a745;
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+}
+
+.status-warning {
+  color: #856404;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+}
+
+.status-disabled {
+  color: #721c24;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-save, .btn-cancel {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.btn-save {
+  background: #28a745;
+  color: white;
+}
+
+.btn-cancel {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-save:hover, .btn-cancel:hover {
+  opacity: 0.8;
+  transform: translateY(-1px);
+}
+
 /* Responsive para el modal */
 @media (max-width: 768px) {
   .field-details {
@@ -1620,6 +2760,178 @@ export default {
     align-items: stretch;
     gap: 10px;
   }
+  
+  .view-tabs {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .view-tab {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .header-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .btn-config, .btn-calendar, .btn-calendar-config {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Selector de calendarios */
+.calendar-selector {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.calendar-selector h6 {
+  margin-bottom: 15px;
+  color: #495057;
+  font-weight: 600;
+}
+
+.calendar-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.calendar-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  position: relative;
+}
+
+.calendar-tab:hover {
+  border-color: #007bff;
+  transform: translateY(-1px);
+}
+
+.calendar-tab.active {
+  border-color: #007bff;
+  background: #f8f9ff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+}
+
+.calendar-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.disabled-badge {
+  background: #dc3545;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+/* Estilos para selección de calendarios en el modal */
+.calendar-selection {
+  margin-bottom: 20px;
+}
+
+.calendar-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.calendar-option {
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.calendar-option:hover {
+  border-color: #007bff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.calendar-option.active {
+  border-color: #007bff;
+  background: #f8f9ff;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+}
+
+.calendar-option.new-option {
+  border-style: dashed;
+  border-color: #28a745;
+  background: #f8fff9;
+}
+
+.calendar-option.new-option:hover {
+  border-color: #28a745;
+  background: #e8f5e8;
+}
+
+.option-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.option-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.option-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #28a745;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.option-title {
+  font-weight: 600;
+  color: #495057;
+  flex: 1;
+}
+
+.option-status {
+  background: #dc3545;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.option-details {
+  color: #6c757d;
+  font-size: 0.8rem;
+  margin-left: 24px;
 }
 
 /* Estilos para el acordeón manual de campos existentes */

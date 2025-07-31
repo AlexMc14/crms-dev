@@ -22,38 +22,21 @@ import "vue-notifyjs/themes/default.css";
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
 import './registerServiceWorker'
-import { messaging, getToken, onMessage } from './firebase';
-
-Notification.requestPermission().then(permission => {
-  if (permission === 'granted') {
-    console.log('Notification permission granted.');
-    getToken(messaging, { vapidKey: 'YOUR_PUBLIC_VAPID_KEY' })  // Asegúrate de reemplazar 'YOUR_PUBLIC_VAPID_KEY' con tu clave VAPID pública.
-      .then((currentToken) => {
-        if (currentToken) {
-          console.log('FCM Token:', currentToken);
-          // Aquí puedes enviar el token a tu servidor o almacenarlo para su uso futuro
-        } else {
-          console.log('No registration token available. Request permission to generate one.');
-        }
-      })
-      .catch((err) => {
-        console.log('An error occurred while retrieving token. ', err);
-      });
-  } else {
-    console.log('Unable to get permission to notify.');
-  }
-});
-
-onMessage(messaging, (payload) => {
-  console.log('Message received. ', payload);
-  // Mostrar notificación en la aplicación
-});
+import GlobalComponents from './plugins/globalComponents';
+import { setTenantId } from './services/api';
 
 Vue.use(BootstrapVue)
 Vue.use(IconsPlugin)
 Vue.use(PaperDashboard);
+Vue.use(GlobalComponents);
 
-/* eslint-disable no-new */
+// Inicializar tenantId desde localStorage
+const tenantId = localStorage.getItem('tenantId');
+if (tenantId) {
+  setTenantId(tenantId);
+}
+
+// Monta la app SIEMPRE, sin lógica condicional
 new Vue({
   router,
   render: (h) => h(App),

@@ -222,3 +222,6 @@ export const seccionesDinamicasService = {
   // Eliminar registro
   deleteRegistro: (seccionId, registroId) => restService.delete(`/secciones-dinamicas/${seccionId}/registros/${registroId}`)
 } 
+
+// Lookup de plataforma por correo
+export const plataformaLookup = (email) => restService.post('/usuarios/plataforma-lookup', { email }); 

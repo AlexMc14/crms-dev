@@ -5,6 +5,7 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth'; // Asegúrate de te
 import routes from "./routes"; // Importa tus rutas correctamente
 import { db } from '../firebase'; // Asegúrate de ajustar la ruta según tu estructura de archivos
 import { collection, getDocs, where, query } from 'firebase/firestore';
+import { plataformaLookup, setTenantId } from '../services/api';
 
 Vue.use(Router);
 
@@ -31,40 +32,17 @@ function getCurrentUser() {
 
 router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-
-  // Asegúrate de esperar a que `getCurrentUser` se resuelva
   currentUser = await getCurrentUser();
 
-  // Evita bucle infinito comprobando si ya estás en la página de login
-  if ((requiresAuth && !currentUser) || currentUser === null) {
-    if (to.name !== 'login') {
-      // Solo redirige al login si no estás ya en la página de login
-      next({ name: 'login' });
-    } else {
-      next(); // Permite que acceda a la página de login
-    }
+  if (to.name === 'login') {
+    next(); // Permite siempre el acceso a login
+    return;
+  }
+
+  if (requiresAuth && !currentUser) {
+    next({ name: 'login' });
   } else {
-    const userData = localStorage.getItem('userInform');
-    if (userData === null) {
-      console.log('Correooo', currentUser.email.replaceAll(' ', ''))
-      const q = query(collection(db, 'especialistas'), where('correo', '==', currentUser.email.replaceAll(' ', '')));
-      const querySnapshot = await getDocs(q);
-      console.log('Queryyy', querySnapshot.docs)
-      if (querySnapshot.docs.length > 0) {
-        localStorage.setItem("userInform", JSON.stringify(querySnapshot.docs[0].data()));
-      } else {
-        console.error('No se encontroooo')
-        const q2 = query(collection(db, 'despachos'), where('correo', '==', currentUser.email.replaceAll(' ', '')));
-        const querySnapshot2 = await getDocs(q2);
-        console.log('Queryyy', querySnapshot2.docs)
-        if (querySnapshot2.docs.length > 0) {
-          localStorage.setItem("userInform", JSON.stringify(querySnapshot2.docs[0].data()));
-        } else {
-          console.error('No se encontroooo')
-        }
-      }
-    }
-    !requiresAuth && currentUser && to.name === 'login' && !next() ?  next({ name: 'dashboard' }) : next()
+    next();
   }
 });
 

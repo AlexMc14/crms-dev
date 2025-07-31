@@ -101,4 +101,22 @@ class RestService {
   }
 }
 
+/**
+ * Registra un nuevo usuario y lo asocia a una plataforma
+ * @param {Object} userData - Datos del usuario (incluyendo info de plataforma)
+ * @returns {Promise}
+ */
+export function registerUser(userData) {
+  return api.post('/usuarios', userData)
+}
+
+/**
+ * Registra una nueva plataforma
+ * @param {Object} plataformaData - Datos de la plataforma
+ * @returns {Promise}
+ */
+export function registerPlataforma(plataformaData) {
+  return api.post('/plataformas', plataformaData)
+}
+
 export default new RestService() 

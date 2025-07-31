@@ -29,6 +29,8 @@ import Facturacion from "@/pages/Facturacion.vue";
 import CobrosPagos from "@/pages/CobrosPagos.vue";
 import SeguridadPermisos from "@/pages/SeguridadPermisos.vue";
 import CrmDinamico from "@/pages/CrmDinamico.vue";
+import RegistroUsuario from "@/pages/RegistroUsuario.vue";
+import RegistroPlataforma from "@/pages/RegistroPlataforma.vue";
 
 Vue.use(Router);
 
@@ -120,6 +122,16 @@ const routes = [
         props: true,
       },
     ],
+  },
+  {
+    path: "/registro-usuario",
+    name: "registro-usuario",
+    component: RegistroUsuario
+  },
+  {
+    path: "/registro-plataforma",
+    name: "registro-plataforma",
+    component: RegistroPlataforma
   },
   { path: "*", component: NotFound },
   // { path: "/:catchAll(.*)", component: NotFound }, // Ruta 404

@@ -6,116 +6,86 @@
 </template>
 
 <script>
-import { ref, watch, onMounted, onUnmounted } from "vue";
-import { db } from './firebase'; // Asegúrate de ajustar la ruta según tu estructura de archivos
+import { db } from './firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 export default {
-  setup() {
-    const casosSinAsignar = ref(0);
-    const casosSinPresupuesto = ref(0);
-    const clientesLlamar = ref(0);
-    const isAuthenticated = ref(false);
-    const userData =  ref(JSON.parse(localStorage.getItem('userInform')));
-
-    // Referencias a los desuscriptores para poder desuscribirse cuando sea necesario
-    let unsuscribeCasosSinAsignar = null;
-    let unsuscribeCasosSinPresupuesto = null;
-    let unsuscribeClientesLlamar = null;
-
-    const auth = getAuth();
-
-    const checkLogIn = () => {
-      onAuthStateChanged(auth, (user) => {
-        isAuthenticated.value = !!user;
-      });
+  data() {
+    return {
+      casosSinAsignar: 0,
+      casosSinPresupuesto: 0,
+      clientesLlamar: 0,
+      isAuthenticated: false,
+      userData: JSON.parse(localStorage.getItem('userInform')),
+      // Referencias a los desuscriptores para poder desuscribirse cuando sea necesario
+      unsuscribeCasosSinAsignar: null,
+      unsuscribeCasosSinPresupuesto: null,
+      unsuscribeClientesLlamar: null
     };
-
-    const suscribirseEscuchadores = () => {
+  },
+  watch: {
+    isAuthenticated(newValue) {
+      if (newValue && this.userData && this.userData.admin && this.userData.admin === true) {
+        this.suscribirseEscuchadores();
+      } else {
+        this.desuscribirseEscuchadores();
+      }
+    }
+  },
+  mounted() {
+    this.checkLogIn();
+  },
+  beforeDestroy() {
+    // Asegúrate de desuscribirte cuando el componente se desmonte
+    this.desuscribirseEscuchadores();
+  },
+  methods: {
+    checkLogIn() {
+      const auth = getAuth();
+      onAuthStateChanged(auth, (user) => {
+        this.isAuthenticated = !!user;
+      });
+    },
+    suscribirseEscuchadores() {
       console.log("Suscribiendo a los escuchadores...");
 
       const qCasosSinAsignar = query(collection(db, 'casos'), where('telEspecialista', '==', null), where('status', '==', '0'), where('confirmaCaso', '==', '1'));
-      unsuscribeCasosSinAsignar = onSnapshot(qCasosSinAsignar, (querySnapshot) => {
-        if (querySnapshot.docs.length > casosSinAsignar.value) {
-          mostrarNotificacion('Caso sin asignar', 'Debes asignar un especialista');
+      this.unsuscribeCasosSinAsignar = onSnapshot(qCasosSinAsignar, (querySnapshot) => {
+        if (querySnapshot.docs.length > this.casosSinAsignar) {
+          this.mostrarNotificacion('Caso sin asignar', 'Debes asignar un especialista');
         }
-        casosSinAsignar.value = querySnapshot.docs.length;
+        this.casosSinAsignar = querySnapshot.docs.length;
       });
 
       const qCasosSinPresupuesto = query(collection(db, 'casos'), where('status', '==', '1'));
-      unsuscribeCasosSinPresupuesto = onSnapshot(qCasosSinPresupuesto, (querySnapshot) => {
-        if (querySnapshot.docs.length > casosSinPresupuesto.value) {
-          mostrarNotificacion('Cliente sin presupuesto', 'Se debe enviar un presupuesto al cliente');
+      this.unsuscribeCasosSinPresupuesto = onSnapshot(qCasosSinPresupuesto, (querySnapshot) => {
+        if (querySnapshot.docs.length > this.casosSinPresupuesto) {
+          this.mostrarNotificacion('Cliente sin presupuesto', 'Se debe enviar un presupuesto al cliente');
         }
-        casosSinPresupuesto.value = querySnapshot.docs.length;
+        this.casosSinPresupuesto = querySnapshot.docs.length;
       });
 
       const qClientesLlamar = query(collection(db, 'clientes'), where('confirmaCaso', '==', '0'));
-      unsuscribeClientesLlamar = onSnapshot(qClientesLlamar, (querySnapshot) => {
-        if (querySnapshot.docs.length > clientesLlamar.value) {
-          mostrarNotificacion('Llamar a cliente', 'Se necesita confirmar la especialidad para el cliente');
+      this.unsuscribeClientesLlamar = onSnapshot(qClientesLlamar, (querySnapshot) => {
+        if (querySnapshot.docs.length > this.clientesLlamar) {
+          this.mostrarNotificacion('Llamar a cliente', 'Se necesita confirmar la especialidad para el cliente');
         }
-        clientesLlamar.value = querySnapshot.docs.length;
+        this.clientesLlamar = querySnapshot.docs.length;
       });
-    };
-
-    const desuscribirseEscuchadores = () => {
+    },
+    desuscribirseEscuchadores() {
       console.log("Desuscribiendo de los escuchadores...");
-      if (unsuscribeCasosSinAsignar) unsuscribeCasosSinAsignar();
-      if (unsuscribeCasosSinPresupuesto) unsuscribeCasosSinPresupuesto();
-      if (unsuscribeClientesLlamar) unsuscribeClientesLlamar();
-    };
-
-    watch(isAuthenticated, (newValue) => {
-      if (newValue && userData.value.admin && userData.value.admin === true) {
-        suscribirseEscuchadores(); // Suscribirse a los escuchadores
-      } else {
-        desuscribirseEscuchadores(); // Desuscribirse de los escuchadores
-      }
-    });
-
-    // onMounted(() => {
-    //   checkLogIn();
-    //   if ('serviceWorker' in navigator) {
-    //     navigator.serviceWorker.ready.then((registration) => {
-    //       // Escucha los cambios en el service worker
-    //       registration.addEventListener('updatefound', () => {
-    //         const newWorker = registration.installing;
-
-    //         newWorker.addEventListener('statechange', () => {
-    //           if (newWorker.state === 'installed') {
-    //             if (navigator.serviceWorker.controller) {
-    //               // Si hay un SW activo, significa que hay una nueva versión
-    //               console.log('Nueva versión disponible. Limpiando caché y recargando.');
-                  
-    //               // Borrar caché y recargar la página para aplicar la nueva versión
-    //               caches.keys().then((cacheNames) => {
-    //                 cacheNames.forEach((cacheName) => {
-    //                   caches.delete(cacheName);
-    //                 });
-    //               }).then(() => {
-    //                 window.location.reload();
-    //               });
-    //             }
-    //           }
-    //         });
-    //       });
-    //     });
-    //     }
-    // });
-
-    onUnmounted(() => {
-      // Asegúrate de desuscribirte cuando el componente se desmonte
-      desuscribirseEscuchadores();
-    });
-
-    function mostrarNotificacion(titulo, desc) {
+      if (this.unsuscribeCasosSinAsignar) this.unsuscribeCasosSinAsignar();
+      if (this.unsuscribeCasosSinPresupuesto) this.unsuscribeCasosSinPresupuesto();
+      if (this.unsuscribeClientesLlamar) this.unsuscribeClientesLlamar();
+    },
+    mostrarNotificacion(titulo, desc) {
       if (Notification.permission === 'granted') {
         const notification = new Notification(titulo, {
           body: desc,
           appName: 'Crms',
-          icon: './src/img/vue-logo.png' // Ruta al ícono opcional
+          icon: './src/img/vue-logo.png'
         });
 
         notification.onclick = function(tp) {
@@ -124,18 +94,11 @@ export default {
       } else if (Notification.permission !== 'denied') {
         Notification.requestPermission().then(permission => {
           if (permission === 'granted') {
-            mostrarNotificacion(titulo, desc);
+            this.mostrarNotificacion(titulo, desc);
           }
         });
       }
     }
-
-    return {
-      casosSinAsignar,
-      casosSinPresupuesto,
-      clientesLlamar,
-      isAuthenticated
-    };
   }
 };
 </script>

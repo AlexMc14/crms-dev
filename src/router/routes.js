@@ -39,99 +39,118 @@ const routes = [
     path: "/",
     component: DashboardLayout,
     redirect: "/crm-dinamico",
+    meta: { requiresAuth: true },
     children: [
       {
         path: "dashboard",
         name: "dashboard",
         component: Dashboard,
+        meta: { requiresAuth: true },
       },
       {
         path: "login",
         name: "login",
         component: Login,
+        meta: { requiresAuth: false },
       },
       {
         path: '/perfil/:id',
         name: 'UserProfile',
-        component: UserProfile
+        component: UserProfile,
+        meta: { requiresAuth: true },
       },
       {
         path:"listado-clientes",
         name: "listado-clientes",
         component: ListadoClientes,
+        meta: { requiresAuth: true },
       },
       {
         path:"listado-citas",
         name: "listado-citas",
         component: ListadoCitas,
+        meta: { requiresAuth: true },
       },
       {
         path:"agenda",
         name: "agenda",
         component: Agenda,
+        meta: { requiresAuth: true },
       },
       {
         path:"agenda-citas",
         name: "agenda-citas",
         component: AgendaCitas,
+        meta: { requiresAuth: true },
       },
       {
         path: "listado-servicios",
         name: "listado-servicios",
         component: ListadoServicios,
+        meta: { requiresAuth: true },
       },
       {
         path: "listado-productos",
         name: "listado-productos",
         component: ListadoProductos,
+        meta: { requiresAuth: true },
       },
       {
         path: "listado-categorias",
         name: "listado-categorias",
         component: ListadoCategorias,
+        meta: { requiresAuth: true },
       },
       {
         path: "facturacion",
         name: "facturacion",
         component: Facturacion,
+        meta: { requiresAuth: true },
       },
       {
         path: "cobros-pagos",
         name: "cobros-pagos",
         component: CobrosPagos,
+        meta: { requiresAuth: true },
       },
       {
         path: "empleados-usuarios",
         name: "empleados-usuarios",
         component: EmpleadosUsuarios,
+        meta: { requiresAuth: true },
       },
       {
         path: "seguridad-permisos",
         name: "seguridad-permisos",
         component: SeguridadPermisos,
+        meta: { requiresAuth: true },
       },
       {
         path: "crm-dinamico",
         name: "crm-dinamico",
         component: CrmDinamico,
+        meta: { requiresAuth: true },
       },
       {
         path: "crm-seccion/:sectionName",
         name: "crm-seccion",
         component: () => import("@/pages/CrmSeccion.vue"),
         props: true,
+        meta: { requiresAuth: true },
       },
     ],
   },
   {
     path: "/registro-usuario",
     name: "registro-usuario",
-    component: RegistroUsuario
+    component: RegistroUsuario,
+    meta: { requiresAuth: false },
   },
   {
     path: "/registro-plataforma",
     name: "registro-plataforma",
-    component: RegistroPlataforma
+    component: RegistroPlataforma,
+    meta: { requiresAuth: false },
   },
   { path: "*", component: NotFound },
   // { path: "/:catchAll(.*)", component: NotFound }, // Ruta 404

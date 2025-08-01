@@ -104,28 +104,24 @@
     <!-- Modal de detalles del evento -->
     <b-modal 
       v-model="showEventModal" 
-      :title="selectedEvent ? selectedEvent.title : 'Detalles del evento'"
+      title="Detalles del Registro"
       size="lg"
       hide-footer
     >
       <div v-if="selectedEvent" class="event-details">
-        <div class="event-header">
-          <div class="event-icon">
-            <i class="ti-calendar"></i>
-          </div>
-          <div class="event-info">
-            <h4>{{ selectedEvent.title }}</h4>
-            <p class="event-date">
-              <i class="ti-time"></i>
-              {{ formatFullDate(selectedEvent.date) }}
-            </p>
-          </div>
-        </div>
-        
         <div class="event-fields">
-          <div v-for="(value, key) in selectedEvent.data" :key="`detail-${key}`" class="event-field">
+          <!-- <div v-for="(value, key) in getRegistroData(selectedEvent)" :key="`registro-${key}`" class="event-field">
             <label class="field-label">{{ formatFieldName(key) }}:</label>
-            <span class="field-value">{{ value }}</span>
+            <span class="field-value">{{ formatFieldValue(value, key) }}</span>
+          </div> -->
+          
+          <!-- Mostrar valores desglosados -->
+          <div v-if="getRegistroValues(selectedEvent)" class="field-section">
+            <!-- <h6 class="section-title">Valores del Registro</h6> -->
+            <div v-for="(value, key) in getRegistroValues(selectedEvent)" :key="`valor-${key}`" class="event-field">
+              <label class="field-label">{{ formatFieldName(key) }}:</label>
+              <span class="field-value">{{ value }}</span>
+            </div>
           </div>
         </div>
 
@@ -233,6 +229,10 @@ export default {
     availableFields: {
       type: [Object, Array],
       default: () => ({})
+    },
+    columns: {
+      type: Array,
+      default: () => []
     },
     loading: {
       type: Boolean,
@@ -356,6 +356,7 @@ export default {
       return ''
     },
     showEventDetails(event) {
+      console.log('🎯 showEventDetails - Event:', event)
       this.selectedEvent = event
       this.showEventModal = true
     },
@@ -439,6 +440,143 @@ export default {
     },
     formatFieldName(key) {
       return key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')
+    },
+    formatFieldValue(value, key) {
+      if (value === null || value === undefined) return '-'
+      
+      // Formatear fechas
+      if (key === 'createdAt' || key === 'updatedAt') {
+        return new Date(value).toLocaleString('es-ES')
+      }
+      
+      // Formatear objetos (excepto valores que son objetos simples)
+      if (typeof value === 'object' && value !== null) {
+        // Si es el objeto valores, mostrar cada campo por separado
+        if (key === 'valores') {
+          return Object.entries(value).map(([k, v]) => `${k}: ${v}`).join(', ')
+        }
+        // Para otros objetos, mostrar como JSON formateado
+        return JSON.stringify(value, null, 2)
+      }
+      
+      // Formatear valores booleanos
+      if (typeof value === 'boolean') {
+        return value ? 'Sí' : 'No'
+      }
+      
+      // Formatear números
+      if (typeof value === 'number') {
+        return value.toLocaleString('es-ES')
+      }
+      
+      // Para strings, devolver tal como están
+      return String(value)
+    },
+    getRegistroValues(event) {
+      console.log('🔍 getRegistroValues - Event:', event)
+      
+      // Buscar el registro en diferentes ubicaciones posibles
+      let registro = null
+      if (event && event.registro) {
+        registro = event.registro
+      } else if (event && event.data && event.data.registro) {
+        registro = event.data.registro
+      }
+      
+      if (!registro) {
+        console.log('❌ No hay registro:', { event, registro })
+        return {}
+      }
+      
+      console.log('📊 Registro encontrado:', registro)
+      
+      // Buscar el registro anidado
+      let registroAnidado = null
+      if (registro.registro) {
+        registroAnidado = registro.registro
+        console.log('✅ Encontrado registro anidado')
+      }
+      
+      if (!registroAnidado || !registroAnidado.valores) {
+        console.log('❌ No hay registro anidado o valores:', { registro, registroAnidado })
+        return {}
+      }
+      
+      const valores = registroAnidado.valores
+      console.log('📊 Valores del registro anidado:', valores)
+      
+      // Devolver directamente los valores
+      return valores
+    },
+    
+    getRegistroData(event) {
+      console.log('🔍 getRegistroData - Event:', event)
+      
+      // Buscar el registro en diferentes ubicaciones posibles
+      let registro = null
+      if (event && event.registro) {
+        registro = event.registro
+      } else if (event && event.data && event.data.registro) {
+        registro = event.data.registro
+      }
+      
+      if (!registro) {
+        console.log('❌ No hay registro:', { event, registro })
+        return {}
+      }
+      
+      console.log('📊 Registro encontrado:', registro)
+      
+      // Buscar el registro anidado
+      let registroAnidado = null
+      if (registro.registro) {
+        registroAnidado = registro.registro
+        console.log('✅ Encontrado registro anidado para metadata')
+      }
+      
+      if (!registroAnidado) {
+        console.log('❌ No hay registro anidado')
+        return {}
+      }
+      
+      // Solo devolver los campos del registro anidado (excluyendo valores)
+      const registroData = {}
+      
+      // Agregar campos del registro anidado (excluyendo valores que se muestran por separado)
+      Object.entries(registroAnidado).forEach(([key, value]) => {
+        if (key !== 'valores' && value !== null && value !== undefined) {
+          registroData[key] = value
+        }
+      })
+      
+      console.log('✅ Datos del registro:', registroData)
+      return registroData
+    },
+    
+    getRelevantEventFields(event) {
+      if (!event || !event.registro) return {}
+      
+      // Mostrar solo el contenido del atributo 'registro'
+      const registro = event.registro
+      const relevantFields = {}
+      
+      // Agregar campos del registro
+      if (registro._id) relevantFields['ID'] = registro._id
+      if (registro.seccionId) relevantFields['ID Sección'] = registro.seccionId
+      if (registro.__v !== undefined) relevantFields['Versión'] = registro.__v
+      if (registro.createdAt) relevantFields['Fecha Creación'] = registro.createdAt
+      if (registro.updatedAt) relevantFields['Fecha Actualización'] = registro.updatedAt
+      
+      // Agregar valores del registro
+      if (registro.valores && typeof registro.valores === 'object') {
+        Object.entries(registro.valores).forEach(([key, value]) => {
+          if (value !== null && value !== undefined && value !== '') {
+            relevantFields[key] = value
+          }
+        })
+      }
+      
+      return relevantFields
     },
     getWeekDayEvents(dayName) {
       // Implementar para vista semanal
@@ -726,42 +864,25 @@ export default {
   padding: 20px 0;
 }
 
-.event-header {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.event-icon {
-  width: 50px;
-  height: 50px;
-  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 1.5rem;
-}
-
-.event-info h4 {
-  margin: 0 0 5px 0;
-  color: #2c3e50;
-}
-
-.event-date {
-  margin: 0;
-  color: #6c757d;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
 .event-fields {
   margin-bottom: 20px;
+}
+
+.field-section {
+  margin-bottom: 25px;
+}
+
+.field-section:last-child {
+  margin-bottom: 0;
+}
+
+.section-title {
+  color: #2c3e50;
+  font-weight: 600;
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e9ecef;
+  font-size: 1rem;
 }
 
 .event-field {

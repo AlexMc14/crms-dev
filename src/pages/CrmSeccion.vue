@@ -385,6 +385,7 @@
             :date-field="dateFieldName"
             :title-field="titleFieldName"
             :available-fields="{}"
+            :columns="seccionActual.columnas"
             :loading="calendarLoading"
             @add-event="addCalendarEvent"
             @update-event="updateCalendarEvent"
@@ -1067,7 +1068,8 @@ export default {
             title: displayTitle,
             date: eventDate,
             color: eventColor,
-            data: eventData
+            data: eventData,
+            registro: registro // Preservar el registro completo
           }
           
           console.log('Evento generado:', event)

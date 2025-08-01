@@ -53,7 +53,7 @@
           <div class="day-events">
             <div 
               v-for="(event, index) in day.events.slice(0, 2)" 
-              :key="event.id || `event-${index}`"
+              :key="`event-${index}-${event.id || 'no-id'}`"
               class="event-item"
               :style="{ backgroundColor: getEventColor(event) }"
               @click.stop="showEventDetails(event)"
@@ -87,8 +87,8 @@
           <div class="week-day-number">{{ getDayNumber(day) }}</div>
           <div class="week-day-events">
             <div 
-              v-for="event in getWeekDayEvents(day)" 
-              :key="event.id"
+              v-for="(event, index) in getWeekDayEvents(day)" 
+              :key="`week-event-${index}-${event.id || 'no-id'}`"
               class="week-event"
               :style="{ backgroundColor: getEventColor(event) }"
               @click="showEventDetails(event)"
@@ -123,7 +123,7 @@
         </div>
         
         <div class="event-fields">
-          <div v-for="(value, key) in selectedEvent.data" :key="key" class="event-field">
+          <div v-for="(value, key) in selectedEvent.data" :key="`detail-${key}`" class="event-field">
             <label class="field-label">{{ formatFieldName(key) }}:</label>
             <span class="field-value">{{ value }}</span>
           </div>
@@ -190,7 +190,7 @@
 
         <div class="form-group">
           <label>Datos adicionales</label>
-          <div v-for="(field, key) in availableFields" :key="key" class="field-input">
+          <div v-for="(field, key) in availableFields" :key="`field-${key}`" class="field-input">
             <label>{{ formatFieldName(key) }}</label>
             <input 
               type="text" 

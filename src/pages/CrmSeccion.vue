@@ -53,7 +53,7 @@
               <i class="ti-settings"></i> Configurar Campos
             </button>
             <button 
-              v-if="hasDateField && !calendarEnabled" 
+              v-if="hasDateField && hasCalendarConfigs && !calendarEnabled" 
               class="btn-calendar" 
               @click="showCalendarSettings = true"
             >
@@ -373,6 +373,7 @@
         
                   <CalendarView 
             v-if="calendarEnabled && dateFieldName && titleFieldName"
+            :key="`calendar-${seccionActual ? seccionActual._id || seccionActual.id : 'no-section'}`"
             :events="calendarEvents"
             :date-field="dateFieldName"
             :title-field="titleFieldName"
@@ -930,6 +931,11 @@ export default {
         const columna = typeof col === 'string' ? { nombre: col, tipo: 'texto' } : col
         return columna.tipo === 'fecha'
       })
+    })
+
+    // Computed para verificar si hay calendarios configurados
+    const hasCalendarConfigs = computed(() => {
+      return calendarConfigs.value && calendarConfigs.value.length > 0
     })
 
     // Función para obtener el valor de un campo según el tipo de vista
@@ -1968,6 +1974,20 @@ export default {
       }
     }
 
+    const clearCalendarState = () => {
+      console.log('🧹 Limpiando estado del calendario...')
+      calendarData.value = []
+      calendarEvents.value = []
+      calendarEnabled.value = false
+      dateFieldName.value = ''
+      titleFieldName.value = ''
+      calendarTitle.value = ''
+      selectedDisplayFields.value = []
+      selectedCalendar.value = null
+      calendarConfigs.value = []
+      currentView.value = 'table' // Volver a la vista de tabla por defecto
+    }
+
     const loadCalendarConfigs = async () => {
       if (!seccionActual.value) return
       
@@ -2023,6 +2043,10 @@ export default {
     // Cargar configuraciones de calendario cuando cambie la sección
     watch(seccionActual, async (newSeccion) => {
       if (newSeccion) {
+        // Limpiar estado del calendario anterior
+        clearCalendarState()
+        
+        // Cargar configuraciones de la nueva sección
         await loadCalendarConfigs()
       }
     })
@@ -2079,6 +2103,7 @@ export default {
       // Variables y funciones del calendario
       currentView,
       hasDateField,
+      hasCalendarConfigs,
       calendarEvents,
       dateFieldName,
       titleFieldName,
@@ -2097,6 +2122,7 @@ export default {
       saveCalendarSettings,
       loadCalendarData,
       loadCalendarConfigs,
+      clearCalendarState,
       initializeCalendarFields,
       onTitleChange,
       selectCalendar,

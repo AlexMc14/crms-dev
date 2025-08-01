@@ -117,13 +117,56 @@
             <i class="ti-calendar"></i> Calendario
           </button>
         </div>
+        
+        <!-- Información de vista avanzada -->
+        <!-- <div class="advanced-view-info">
+          <div class="info-badge">
+            <i class="ti-database"></i>
+            <span>Vista Avanzada con Filtros y Paginación</span>
+          </div>
+        </div> -->
+      </div>
+
+      <!-- Filtros dinámicos colapsables -->
+      <div v-if="currentView === 'table'" class="filtros-section">
+        <div class="filtros-header-collapsible" @click="toggleFiltros">
+          <div class="filtros-title">
+            <i class="ti-filter"></i>
+            <span>Filtros Avanzados</span>
+            <span v-if="filtrosActivos" class="filtros-count">({{ Object.keys(filtrosActivos).length }} activos)</span>
+          </div>
+          <div class="filtros-toggle">
+            <i class="ti-angle-down" :class="{ 'rotated': filtrosAbiertos }"></i>
+          </div>
+        </div>
+        
+        <div v-if="filtrosAbiertos" class="filtros-content-collapsible">
+          <div v-if="!seccionActual || !seccionActual.columnas" class="text-center text-muted">
+            <p>Cargando campos de filtros...</p>
+          </div>
+          <FiltrosDinamicos
+            v-else
+            :campos-disponibles="seccionActual.columnas"
+            :secciones="secciones"
+            @filtros-cambiados="aplicarFiltros"
+          />
+        </div>
       </div>
 
       <!-- Vista de tabla -->
       <div v-if="currentView === 'table'" class="table-section">
         <div class="table-header">
-          <h2>Datos de {{ seccionActual.nombre }}</h2>
-          <span class="record-count">{{ seccionActual.datos ? seccionActual.datos.length : 0 }} registros</span>
+          <div class="header-left">
+            <h2>Datos de {{ seccionActual.nombre }}</h2>
+            <span class="record-count">
+              {{ pagination.totalItems || 0 }} registros
+            </span>
+          </div>
+          <div class="header-right">
+            <button class="btn-add-header" @click="showAddModal = true">
+              <i class="ti-plus"></i> Agregar Registro
+            </button>
+          </div>
         </div>
         <div class="table-responsive">
           <table class="table table-striped table-hover">
@@ -136,12 +179,36 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-if="!seccionActual.datos || seccionActual.datos.length === 0">
-                <td :colspan="seccionActual.columnas.length + 1" class="text-center text-muted">
-                  No hay registros aún.
+              <!-- Loading de registros -->
+              <tr v-if="loading">
+                <td :colspan="seccionActual.columnas.length + 1" class="text-center">
+                  <i class="ti-reload" style="animation: spin 1s linear infinite;"></i>
+                  Cargando registros...
                 </td>
               </tr>
-              <tr v-for="(fila, filaIndex) in seccionActual.datos" :key="fila._id || filaIndex">
+              
+              <!-- Sin registros -->
+              <tr v-else-if="!registros || registros.length === 0">
+                <td :colspan="seccionActual.columnas.length + 1" class="text-center text-muted">
+                  <div v-if="Object.keys(filtrosActivos).length > 0">
+                    <i class="ti-search" style="font-size: 2rem; color: #ccc; margin-bottom: 10px;"></i>
+                    <p>No se encontraron registros con los filtros aplicados.</p>
+                    <button class="btn-clear-filters" @click="limpiarFiltros">
+                      <i class="ti-close"></i> Limpiar Filtros
+                    </button>
+                  </div>
+                  <div v-else>
+                    <i class="ti-database" style="font-size: 2rem; color: #ccc; margin-bottom: 10px;"></i>
+                    <p>No hay registros aún.</p>
+                    <button class="btn-add" @click="showAddModal = true">
+                      <i class="ti-plus"></i> Agregar primer registro
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              
+              <!-- Registros -->
+              <tr v-for="(fila, filaIndex) in registros" :key="fila._id || filaIndex">
                 <td v-for="columna in seccionActual.columnas" :key="columna.nombre || columna">
                   <template v-if="fila._id ? filaEditando === fila._id : true">
                     <template v-if="columna.tipo === 'relacional'">
@@ -224,73 +291,40 @@
                 </td>
               </tr>
             </tbody>
-            <tfoot>
-              <tr class="new-row">
-                <td v-for="columna in seccionActual.columnas" :key="columna.nombre || columna">
-                  <template v-if="columna.tipo === 'relacional'">
-                    <div class="search-select-container">
-                      <input
-                        type="text"
-                        class="form-control form-control-sm"
-                        v-model="nuevaFila.valores[columna.nombre]"
-                        :placeholder="'Buscar en ' + columna.seccionRelacionada"
-                        @input="filtrarOpcionesNuevaFila($event, columna)"
-                        @focus="mostrarOpcionesNueva(columna)"
-                        @blur="ocultarOpcionesNueva(columna)"
-                        @keyup.enter="agregarFila"
-                        autocomplete="off"
-                      >
-                      <div v-if="opcionesVisibles[columna.nombre + '_nueva']" class="opciones-dropdown">
-                        <div
-                          v-for="opcion in opcionesFiltradas[columna.nombre + '_nueva']"
-                          :key="opcion"
-                          class="opcion-item"
-                          @mousedown.prevent="seleccionarOpcionNuevaFila(opcion, columna.nombre)"
-                        >
-                          {{ opcion }}
-                        </div>
-                        <div v-if="opcionesFiltradas[columna.nombre + '_nueva'].length === 0" class="no-opciones">
-                          No se encontraron resultados
-                        </div>
-                      </div>
-                    </div>
-                  </template>
-                  <template v-else-if="columna.tipo === 'numero'">
-                    <input
-                      type="number"
-                      class="form-control form-control-sm"
-                      v-model="nuevaFila.valores[columna.nombre]"
-                      :placeholder="'Nuevo ' + columna.nombre"
-                      @keyup.enter="agregarFila"
-                    >
-                  </template>
-                  <template v-else-if="columna.tipo === 'fecha'">
-                    <input
-                      type="date"
-                      class="form-control form-control-sm"
-                      v-model="nuevaFila.valores[columna.nombre]"
-                      :placeholder="'Nuevo ' + columna.nombre"
-                      @keyup.enter="agregarFila"
-                    >
-                  </template>
-                  <template v-else>
-                    <input
-                      type="text"
-                      class="form-control form-control-sm"
-                      v-model="nuevaFila.valores[columna.nombre]"
-                      :placeholder="'Nuevo ' + columna.nombre"
-                      @keyup.enter="agregarFila"
-                    >
-                  </template>
-                </td>
-                <td class="text-center">
-                  <button class="btn-add" @click="agregarFila" title="Agregar fila">
-                    <i class="ti-plus"></i>
-                  </button>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+                    </table>
+        </div>
+        
+        <!-- Controles de paginación -->
+        <div class="paginacion-controls" v-if="pagination && pagination.totalPages > 1">
+          <div class="pagination-info">
+            <span>
+              Mostrando {{ pagination.currentPage * pagination.itemsPerPage - pagination.itemsPerPage + 1 }} 
+              a {{ Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems) }} 
+              de {{ pagination.totalItems }} registros
+            </span>
+          </div>
+          
+          <div class="pagination-buttons">
+            <button 
+              class="btn-pagination" 
+              :disabled="!pagination.hasPrevPage"
+              @click="cambiarPagina(pagination.prevPage)"
+            >
+              <i class="ti-angle-left"></i> Anterior
+            </button>
+            
+            <span class="page-info">
+              Página {{ pagination.currentPage }} de {{ pagination.totalPages }}
+            </span>
+            
+            <button 
+              class="btn-pagination" 
+              :disabled="!pagination.hasNextPage"
+              @click="cambiarPagina(pagination.nextPage)"
+            >
+              Siguiente <i class="ti-angle-right"></i>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -693,6 +727,88 @@
         </div>
       </div>
     </b-modal>
+
+    <!-- Modal para agregar nuevo registro -->
+    <b-modal 
+      v-model="showAddModal" 
+      title="Agregar Nuevo Registro" 
+      size="lg"
+      hide-footer
+    >
+      <div class="add-record-modal">
+        <div class="form-group" v-for="columna in seccionActual.columnas" :key="columna.nombre">
+          <label :for="`modal-${columna.nombre}`" class="form-label">
+            {{ columna.nombre.charAt(0).toUpperCase() + columna.nombre.slice(1) }}
+          </label>
+          
+          <!-- Input de texto -->
+          <input
+            v-if="columna.tipo === 'texto' || columna.tipo === 'email'"
+            :id="`modal-${columna.nombre}`"
+            type="text"
+            class="form-control"
+            v-model="nuevaFila.valores[columna.nombre]"
+            :placeholder="`Ingrese ${columna.nombre}`"
+          >
+          
+          <!-- Select para campos relacionales -->
+          <div v-else-if="columna.tipo === 'relacional'" class="search-select-container">
+            <input
+              :id="`modal-${columna.nombre}`"
+              type="text"
+              class="form-control"
+              v-model="nuevaFila.valores[columna.nombre]"
+              :placeholder="`Buscar en ${columna.seccionRelacionada}`"
+              @input="filtrarOpcionesNuevaFila($event, columna)"
+              @focus="mostrarOpcionesNueva(columna)"
+              @blur="ocultarOpcionesNueva(columna)"
+              autocomplete="off"
+            >
+            <div v-if="opcionesVisibles[columna.nombre + '_nueva']" class="opciones-dropdown">
+              <div
+                v-for="opcion in opcionesFiltradas[columna.nombre + '_nueva']"
+                :key="opcion"
+                class="opcion-item"
+                @mousedown.prevent="seleccionarOpcionNuevaFila(opcion, columna.nombre)"
+              >
+                {{ opcion }}
+              </div>
+              <div v-if="opcionesFiltradas[columna.nombre + '_nueva'].length === 0" class="no-opciones">
+                No se encontraron resultados
+              </div>
+            </div>
+          </div>
+          
+          <!-- Input de fecha -->
+          <input
+            v-else-if="columna.tipo === 'fecha'"
+            :id="`modal-${columna.nombre}`"
+            type="date"
+            class="form-control"
+            v-model="nuevaFila.valores[columna.nombre]"
+          >
+          
+          <!-- Input numérico -->
+          <input
+            v-else-if="columna.tipo === 'numero'"
+            :id="`modal-${columna.nombre}`"
+            type="number"
+            class="form-control"
+            v-model="nuevaFila.valores[columna.nombre]"
+            :placeholder="`Ingrese ${columna.nombre}`"
+          >
+        </div>
+        
+        <div class="modal-actions">
+          <button class="btn-modal-primary" @click="agregarFilaDesdeModal">
+            <i class="ti-plus"></i> Agregar Registro
+          </button>
+          <button class="btn-modal-secondary" @click="showAddModal = false">
+            <i class="ti-close"></i> Cancelar
+          </button>
+        </div>
+      </div>
+    </b-modal>
   </div>
 </template>
 
@@ -700,11 +816,14 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { seccionesDinamicasService } from '@/services/api/queries'
 import CalendarView from '@/components/CalendarView.vue'
+import { useRegistrosPaginados } from '@/composables/useRegistrosPaginados'
+import FiltrosDinamicos from '@/components/FiltrosDinamicos.vue'
 
 export default {
   name: 'CrmSeccion',
   components: {
-    CalendarView
+    CalendarView,
+    FiltrosDinamicos
   },
   props: {
     sectionName: {
@@ -725,6 +844,7 @@ export default {
     })
     const showClearModal = ref(false)
     const showFieldsModal = ref(false)
+    const showAddModal = ref(false)
     const campoAcordeonAbierto = ref(null)
     const mensajeExitoCampo = ref('')
     const cargando = ref(true)
@@ -753,6 +873,16 @@ export default {
 
     // Estado de edición por fila
     const filaEditando = ref(null)
+
+    // Composable de registros paginados
+    const { registros, pagination, filters, loading, cargarRegistros } = useRegistrosPaginados()
+    
+    // Estado para vista de registros paginados (siempre activa ahora)
+    const usarRegistrosPaginados = ref(true)
+    
+    // Estado para filtros colapsables
+    const filtrosAbiertos = ref(false)
+    const filtrosActivos = ref({})
 
     // Computed para obtener la sección actual
     const seccionActual = computed(() => {
@@ -801,6 +931,37 @@ export default {
         return columna.tipo === 'fecha'
       })
     })
+
+    // Función para obtener el valor de un campo según el tipo de vista
+    const getValorCampo = (fila, nombreCampo) => {
+      if (usarRegistrosPaginados.value) {
+        // En vista paginada, los datos vienen con estructura .valores
+        return fila.valores && fila.valores[nombreCampo] !== undefined 
+          ? fila.valores[nombreCampo] 
+          : fila[nombreCampo] || ''
+      } else {
+        // En vista normal, los datos están directamente en la fila
+        return fila.valores && fila.valores[nombreCampo] !== undefined 
+          ? fila.valores[nombreCampo] 
+          : fila[nombreCampo] || ''
+      }
+    }
+
+    // Función para establecer el valor de un campo según el tipo de vista
+    const setValorCampo = (fila, nombreCampo, valor) => {
+      if (usarRegistrosPaginados.value) {
+        // En vista paginada, asegurar que existe .valores
+        if (!fila.valores) fila.valores = {}
+        fila.valores[nombreCampo] = valor
+      } else {
+        // En vista normal, usar .valores si existe, sino directamente
+        if (fila.valores) {
+          fila.valores[nombreCampo] = valor
+        } else {
+          fila[nombreCampo] = valor
+        }
+      }
+    }
 
     const dateFields = computed(() => {
       if (!seccionActual.value || !seccionActual.value.columnas) return []
@@ -921,23 +1082,106 @@ export default {
       try {
         const res = await seccionesDinamicasService.getAll()
         secciones.value = Array.isArray(res) ? res : (res.data || [])
-        // Por cada sección, cargar sus registros dinámicos
+        
+        // Cargar datos básicos de todas las secciones para filtros relacionales
         for (const seccion of secciones.value) {
-          const registros = await seccionesDinamicasService.getRegistros(seccion._id || seccion.id)
-          // registros es un array de objetos, cada uno con .valores
-          seccion.datos = Array.isArray(registros)
-            ? registros.map(r => {
-                const valores = r.valores || {}
-                return { ...r, valores, _original: { ...valores } }
-              })
-            : []
+          try {
+            const registros = await seccionesDinamicasService.getRegistros(seccion._id || seccion.id)
+            seccion.datos = Array.isArray(registros) ? registros : []
+            console.log(`📊 Datos cargados para ${seccion.nombre}:`, seccion.datos.length, 'registros')
+          } catch (error) {
+            console.warn(`⚠️ Error cargando datos para ${seccion.nombre}:`, error)
+            seccion.datos = []
+          }
         }
+        
         inicializarNuevaFila()
+        
+        // Siempre cargar registros paginados para la vista avanzada
+        if (seccionActual.value) {
+          await cargarRegistrosPaginados()
+        }
       } catch (e) {
         alert('Error al cargar secciones')
         secciones.value = []
       }
       cargando.value = false;
+    }
+
+    // Cargar registros paginados
+    const cargarRegistrosPaginados = async () => {
+      if (!seccionActual.value) return
+      
+      try {
+        // Para carga inicial, siempre empezar desde la página 1
+        const paginaActual = pagination.value && pagination.value.currentPage ? pagination.value.currentPage : 1
+        const filtrosActuales = filters.value && filters.value.applied ? filters.value.applied : {}
+        
+        console.log('🔄 Cargando registros paginados:', {
+          seccionId: seccionActual.value._id || seccionActual.value.id,
+          page: paginaActual,
+          filters: filtrosActuales
+        })
+        
+        await cargarRegistros(seccionActual.value._id || seccionActual.value.id, { 
+          page: paginaActual, 
+          limit: 10,
+          filters: filtrosActuales
+        })
+      } catch (error) {
+        console.error('Error cargando registros paginados:', error)
+      }
+    }
+
+    // Aplicar filtros
+    const aplicarFiltros = async (filtros) => {
+      if (!seccionActual.value) return
+      
+      // Actualizar filtros activos
+      actualizarFiltrosActivos(filtros)
+      
+      try {
+        await cargarRegistros(seccionActual.value._id || seccionActual.value.id, { 
+          page: 1, 
+          limit: 10,
+          filters: filtros 
+        })
+      } catch (error) {
+        console.error('Error aplicando filtros:', error)
+      }
+    }
+
+    // Cambiar página
+    const cambiarPagina = async (pagina) => {
+      if (!seccionActual.value) return
+      
+      try {
+        await cargarRegistros(seccionActual.value._id || seccionActual.value.id, { 
+          page: pagina, 
+          limit: 10,
+          filters: filters.value.applied || {}
+        })
+      } catch (error) {
+        console.error('Error cambiando página:', error)
+      }
+    }
+
+    // Toggle de filtros colapsables
+    const toggleFiltros = () => {
+      console.log('Toggle filtros ejecutado')
+      filtrosAbiertos.value = !filtrosAbiertos.value
+      console.log('Nuevo estado:', filtrosAbiertos.value)
+    }
+
+    // Función para manejar filtros activos
+    const actualizarFiltrosActivos = (filtros) => {
+      filtrosActivos.value = filtros
+    }
+
+    // Limpiar filtros
+    const limpiarFiltros = async () => {
+      filtrosActivos.value = {}
+      await aplicarFiltros({})
     }
 
     // Inicializar nueva fila
@@ -1034,16 +1278,47 @@ export default {
           seccionActual.value._id || seccionActual.value.id,
           { valores: filaNueva }
         )
-        // Añadir el nuevo registro devuelto por el backend (objeto completo)
+        
+        // Actualizar vista simple
         if (seccionActual.value.datos && Array.isArray(seccionActual.value.datos)) {
           seccionActual.value.datos.push(res)
         } else {
           seccionActual.value.datos = [res]
         }
+        
+        // Siempre recargar los registros paginados
+        await cargarRegistrosPaginados()
+        
         inicializarNuevaFila()
-        // No llamar a cargarSecciones para evitar recarga completa
       } catch (e) {
         alert('Error al agregar fila')
+      }
+    }
+
+    // Agregar fila desde modal
+    const agregarFilaDesdeModal = async () => {
+      if (!seccionActual.value) return
+      
+      const filaNueva = {}
+      seccionActual.value.columnas.forEach(col => {
+        const nombreCampo = typeof col === 'string' ? col : col.nombre
+        filaNueva[nombreCampo] = nuevaFila.valores[nombreCampo] || ''
+      })
+      
+      try {
+        const res = await seccionesDinamicasService.createRegistro(
+          seccionActual.value._id || seccionActual.value.id,
+          { valores: filaNueva }
+        )
+        
+        // Siempre recargar los registros paginados
+        await cargarRegistrosPaginados()
+        
+        // Cerrar modal y limpiar formulario
+        showAddModal.value = false
+        inicializarNuevaFila()
+      } catch (e) {
+        alert('Error al agregar registro')
       }
     }
 
@@ -1051,10 +1326,16 @@ export default {
     const eliminarFila = async (filaIndex) => {
       if (!seccionActual.value) return
       
-      const registro = seccionActual.value.datos[filaIndex]
+      // Obtener registro de la lista paginada
+      const registro = registros.value[filaIndex]
+      
+      if (!registro) return
+      
       try {
         await seccionesDinamicasService.deleteRegistro(seccionActual.value._id || seccionActual.value.id, registro._id || registro.id)
-        await cargarSecciones()
+        
+        // Siempre recargar los registros paginados
+        await cargarRegistrosPaginados()
       } catch (e) {
         alert('Error al eliminar fila')
       }
@@ -1301,6 +1582,9 @@ export default {
         } else {
           fila._original = { ...fila.valores }
         }
+        
+        // Siempre recargar los registros paginados
+        await cargarRegistrosPaginados()
       } catch (e) {
         alert('Error al guardar los cambios de la fila')
       }
@@ -1322,6 +1606,14 @@ export default {
     // Watchers
     watch(() => props.sectionName, () => {
       inicializarNuevaFila()
+    })
+
+    // Watcher para actualizar registros paginados cuando cambia la sección
+    watch(seccionActual, async (newSeccion) => {
+      if (newSeccion) {
+        console.log('📋 Sección cambiada, cargando registros paginados...')
+        await cargarRegistrosPaginados()
+      }
     })
 
     watch(() => nuevoCampo.tipo, (nuevoTipo) => {
@@ -1720,10 +2012,12 @@ export default {
     }
 
     // Inicializar al montar
-    onMounted(() => {
-      cargarSecciones()
+    onMounted(async () => {
+      console.log('🚀 Inicializando componente...')
+      await cargarSecciones()
       inicializarCamposNuevos()
       limpiarFormularioCampo()
+      console.log('✅ Componente inicializado')
     })
 
     // Cargar configuraciones de calendario cuando cambie la sección
@@ -1830,6 +2124,24 @@ export default {
       toggleCalendar,
       saveCalendarSettings,
       loadCalendarData,
+      // Funciones para registros paginados
+      registros,
+      pagination,
+      filters,
+      loading,
+      cargarRegistrosPaginados,
+      aplicarFiltros,
+      cambiarPagina,
+      getValorCampo,
+      setValorCampo,
+      // Funciones para filtros colapsables
+      filtrosAbiertos,
+      filtrosActivos,
+      toggleFiltros,
+      limpiarFiltros,
+      // Funciones para modal de agregar
+      showAddModal,
+      agregarFilaDesdeModal,
     }
   }
 }
@@ -1904,23 +2216,59 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #f8f9fa;
+  padding: 15px 20px;
+  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
+  border-radius: 10px;
+  color: white;
+  box-shadow: 0 4px 15px rgba(27, 102, 89, 0.3);
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.btn-add-header {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-add-header:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .table-header h2 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1b6659;
+  color: white;
   margin: 0;
 }
 
 .record-count {
-  background: #e9ecef;
+  background: rgba(255, 255, 255, 0.2);
   padding: 5px 12px;
   border-radius: 20px;
   font-size: 0.9rem;
-  color: #6c757d;
+  color: white;
 }
 
 .btn-add {
@@ -2122,8 +2470,8 @@ export default {
 }
 
 .search-select-container .form-control:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+  border-color: #1b6659;
+  box-shadow: 0 0 0 0.2rem rgba(27, 102, 89, 0.25);
 }
 
 /* Scrollbar personalizado para los resultados */
@@ -2190,7 +2538,7 @@ export default {
 }
 
 .btn-calendar-config {
-  background: linear-gradient(135deg, #6f42c1 0%, #8e44ad 100%);
+  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
   color: white;
   border: none;
   padding: 10px 20px;
@@ -2205,7 +2553,7 @@ export default {
 
 .btn-calendar-config:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(111, 66, 193, 0.4);
+  box-shadow: 0 4px 15px rgba(27, 102, 89, 0.4);
 }
 
 /* Estilos para el resumen de campos */
@@ -2230,7 +2578,7 @@ export default {
   display: block;
   font-size: 2rem;
   font-weight: 700;
-  color: #667eea;
+  color: #1b6659;
   line-height: 1;
 }
 
@@ -2314,7 +2662,7 @@ export default {
 }
 
 .section-title i {
-  color: #667eea;
+  color: #1b6659;
 }
 
 .new-field-section {
@@ -2357,8 +2705,8 @@ export default {
 }
 
 .field-form-modal .form-control:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+  border-color: #1b6659;
+  box-shadow: 0 0 0 0.2rem rgba(27, 102, 89, 0.25);
 }
 
 .existing-fields-section {
@@ -2498,6 +2846,7 @@ export default {
   display: flex;
   gap: 10px;
   justify-content: center;
+  margin-bottom: 15px;
 }
 
 .view-tab {
@@ -2529,6 +2878,116 @@ export default {
 .view-tab.active:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(27, 102, 89, 0.4);
+}
+
+
+
+/* Sección de filtros colapsables */
+.filtros-section {
+  margin-bottom: 20px;
+}
+
+.filtros-header-collapsible {
+  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(27, 102, 89, 0.3);
+}
+
+.filtros-header-collapsible:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(27, 102, 89, 0.4);
+}
+
+.filtros-header-collapsible:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(27, 102, 89, 0.4);
+}
+
+.filtros-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.filtros-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.filtros-toggle {
+  transition: transform 0.3s ease;
+}
+
+.filtros-toggle i {
+  font-size: 1.2rem;
+  transition: transform 0.3s ease;
+}
+
+.filtros-toggle i.rotated {
+  transform: rotate(180deg);
+}
+
+.filtros-content-collapsible {
+  background: white;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-top: 5px;
+}
+
+
+
+/* Información de vista avanzada */
+.advanced-view-info {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.info-badge {
+  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(27, 102, 89, 0.3);
+}
+
+.btn-clear-filters {
+  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  margin-top: 10px;
+  box-shadow: 0 2px 8px rgba(27, 102, 89, 0.3);
+}
+
+.btn-clear-filters:hover {
+  background: linear-gradient(135deg, #2d8a7a 0%, #1b6659 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(27, 102, 89, 0.4);
 }
 
 .calendar-section {
@@ -2731,6 +3190,12 @@ export default {
 .btn-save:hover, .btn-cancel:hover {
   opacity: 0.8;
   transform: translateY(-1px);
+}
+
+/* Animación para el spinner de carga */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* Responsive para el modal */
@@ -2971,5 +3436,154 @@ export default {
 @keyframes fadeInAccordion {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Estilos para controles de paginación */
+.paginacion-controls {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid rgba(27, 102, 89, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.pagination-info {
+  color: #7f8c8d;
+  font-size: 14px;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.btn-pagination {
+  background: #1b6659;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-pagination:hover:not(:disabled) {
+  background: #2d8a7a;
+  transform: translateY(-1px);
+}
+
+.btn-pagination:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.page-info {
+  color: #2c3e50;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .paginacion-controls {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .pagination-buttons {
+    justify-content: center;
+  }
+}
+
+/* Estilos para el modal de agregar registros */
+.add-record-modal {
+  padding: 20px 0;
+}
+
+.add-record-modal .form-group {
+  margin-bottom: 20px;
+}
+
+.add-record-modal .form-label {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.add-record-modal .form-control {
+  padding: 12px;
+  border: 2px solid rgba(27, 102, 89, 0.2);
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.add-record-modal .form-control:focus {
+  outline: none;
+  border-color: #1b6659;
+  box-shadow: 0 0 0 3px rgba(27, 102, 89, 0.1);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+.btn-modal-primary {
+  background: linear-gradient(135deg, #1b6659 0%, #2d8a7a 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(27, 102, 89, 0.3);
+}
+
+.btn-modal-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(27, 102, 89, 0.4);
+  background: linear-gradient(135deg, #2d8a7a 0%, #1b6659 100%);
+}
+
+.btn-modal-secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.btn-modal-secondary:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
 }
 </style> 

@@ -213,6 +213,9 @@ export const seccionesDinamicasService = {
   // Obtener registros de una sección
   getRegistros: (seccionId, params = {}) => restService.get(`/secciones-dinamicas/${seccionId}/registros`, params),
 
+  // Obtener registros paginados de una sección
+  getRegistrosPaginados: (seccionId, params = {}) => restService.get(`/secciones-dinamicas/${seccionId}/registros-paginados`, params),
+
   // Crear registro en una sección
   createRegistro: (seccionId, data) => restService.post(`/secciones-dinamicas/${seccionId}/registros`, data),
 

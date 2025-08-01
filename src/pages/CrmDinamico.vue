@@ -56,6 +56,9 @@
             <button class="btn-view" @click="navegarASeccion(seccion.slug || slugify(seccion.nombre))" title="Ver sección">
               <i class="ti-eye"></i>
             </button>
+            <button class="btn-advanced" @click="navegarARegistrosPaginados(seccion._id || seccion.id)" title="Registros avanzados">
+              <i class="ti-database"></i>
+            </button>
             <button class="btn-edit" @click="editarNombreSeccion(seccionIndex)" title="Editar nombre">
               <i class="ti-pencil"></i>
             </button>
@@ -338,6 +341,13 @@ export default {
       window.location.href = path
     }
 
+    // Navegar a registros paginados
+    const navegarARegistrosPaginados = (seccionId) => {
+      const path = `/registros-paginados/${seccionId}`
+      console.log('NAVEGAR A REGISTROS PAGINADOS: seccionId', seccionId, 'URL', path)
+      window.location.href = path
+    }
+
     // Eliminar sección
     const eliminarSeccion = async (index) => {
       const seccion = secciones.value[index]
@@ -539,6 +549,7 @@ export default {
       confirmarLimpiarTodo,
       guardarConfiguracion,
       navegarASeccion,
+      navegarARegistrosPaginados,
       forzarActualizacionMenu,
       getOpcionesRelacionadas,
       slugify,
@@ -709,6 +720,14 @@ export default {
 
 .btn-view:hover {
   color: #d35400;
+}
+
+.btn-advanced {
+  color: #9b59b6;
+}
+
+.btn-advanced:hover {
+  color: #8e44ad;
 }
 
 .text-capitalize {

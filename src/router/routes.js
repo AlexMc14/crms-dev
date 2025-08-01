@@ -138,6 +138,13 @@ const routes = [
         props: true,
         meta: { requiresAuth: true },
       },
+      {
+        path: "registros-paginados/:seccionId",
+        name: "registros-paginados",
+        component: () => import("@/pages/RegistrosPaginados.vue"),
+        props: true,
+        meta: { requiresAuth: true },
+      },
     ],
   },
   {

@@ -12,7 +12,6 @@
             :key="index"
             :to="route.path"
             :name="route.name"
-            :icon="route.icon"
             v-bind:style="{ display: needShow(route.path) ? 'block' : 'none' }"
             :class="currentPage === index ? 'currentPage' : ''"
           />
@@ -57,14 +56,12 @@
             :key="`crm-${index}`"
             :to="route.path"
             :name="route.name"
-            :icon="route.icon"
             v-bind:style="{ display: needShow(route.path) ? 'block' : 'none' }"
             :class="currentPage === getCrmRouteIndex(route.path) ? 'currentPage' : ''"
           />
           
           <div @click="logout" class="mt-2" style="width: 100%;">
             <sidebar-link
-              icon="ti-power-off"
               to="/"
               name="Desconectarse"
             />

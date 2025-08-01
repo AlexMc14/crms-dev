@@ -53,11 +53,11 @@
               <i class="ti-settings"></i> Configurar Campos
             </button>
             <button 
-              v-if="hasDateField && hasCalendarConfigs && !calendarEnabled" 
+              v-if="hasDateField && !calendarEnabled" 
               class="btn-calendar" 
               @click="showCalendarSettings = true"
             >
-              <i class="ti-calendar"></i> Habilitar Calendario
+              <i class="ti-calendar"></i> {{ hasCalendarConfigs ? 'Habilitar Calendario' : 'Crear Calendario' }}
             </button>
             <button 
               v-if="calendarEnabled" 
@@ -66,6 +66,13 @@
             >
               <i class="ti-settings"></i> Configurar Calendario
             </button>
+            <!-- <button 
+              v-if="hasDateField && !hasCalendarConfigs && !calendarEnabled" 
+              class="btn-calendar-create" 
+              @click="showCalendarSettings = true"
+            >
+              <i class="ti-plus"></i> Crear Primer Calendario
+            </button> -->
           </div>
         </div>
         <div class="fields-summary">
@@ -2582,6 +2589,25 @@ export default {
   box-shadow: 0 4px 15px rgba(27, 102, 89, 0.4);
 }
 
+.btn-calendar-create {
+  background: linear-gradient(135deg, #fd7e14 0%, #e55a00 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-calendar-create:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(253, 126, 20, 0.4);
+}
+
 /* Estilos para el resumen de campos */
 .fields-summary {
   background: #f8f9fa;
@@ -3265,7 +3291,7 @@ export default {
     gap: 10px;
   }
   
-  .btn-config, .btn-calendar, .btn-calendar-config {
+  .btn-config, .btn-calendar, .btn-calendar-config, .btn-calendar-create {
     width: 100%;
     justify-content: center;
   }

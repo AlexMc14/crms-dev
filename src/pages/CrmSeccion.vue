@@ -4,10 +4,8 @@
     <div class="page-header">
       <div class="header-content">
         <h1 class="page-title">
-          <i class="ti-folder"></i>
           {{ seccionActual ? seccionActual.nombre : 'Sección no encontrada' }}
         </h1>
-        <p class="page-subtitle">Gestión de datos de la sección</p>
       </div>
     </div>
 

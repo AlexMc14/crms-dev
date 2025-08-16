@@ -260,6 +260,21 @@
                         :placeholder="'Ingrese ' + columna.nombre"
                       >
                     </template>
+                    <template v-else-if="columna.tipo === 'select'">
+                      <select
+                        class="form-control form-control-sm"
+                        v-model="fila.valores[columna.nombre]"
+                      >
+                        <option value="">Selecciona una opción</option>
+                        <option 
+                          v-for="opcion in columna.opciones" 
+                          :key="opcion" 
+                          :value="opcion"
+                        >
+                          {{ opcion }}
+                        </option>
+                      </select>
+                    </template>
                     <template v-else>
                       <input
                         type="text"
@@ -618,6 +633,7 @@
                     <option value="texto">Texto</option>
                     <option value="numero">Número</option>
                     <option value="fecha">Fecha</option>
+                    <option value="select">Select</option>
                     <option value="relacional">Relacional</option>
                   </select>
                 </div>
@@ -642,6 +658,18 @@
                       {{ campo }}
                     </option>
                   </select>
+                </div>
+              </div>
+              <div class="col-md-5" v-if="nuevoCampo.tipo === 'select'">
+                <div class="form-group">
+                  <label>Opciones del select (separadas por comas)</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    v-model="nuevoCampo.opcionesSelect"
+                    placeholder="Ej: Opción 1, Opción 2, Opción 3"
+                  >
+                  <small class="text-muted">Ingresa las opciones separadas por comas</small>
                 </div>
               </div>
             </div>
@@ -690,6 +718,7 @@
                         <option value="texto">Texto</option>
                         <option value="numero">Número</option>
                         <option value="fecha">Fecha</option>
+                        <option value="select">Select</option>
                         <option value="relacional">Relacional</option>
                       </select>
                     </div>
@@ -710,6 +739,17 @@
                           {{ campo }}
                         </option>
                       </select>
+                    </div>
+                    <div class="field-info-item" v-if="seccionActual.columnas[index].tipo === 'select'">
+                      <label>Opciones del select:</label>
+                      <input
+                        type="text"
+                        class="form-control"
+                        v-model="seccionActual.columnas[index].opcionesString"
+                        :placeholder="'Opciones separadas por comas'"
+                        @input="actualizarOpcionesSelect(index)"
+                      >
+                      <small class="text-muted">Opciones actuales: {{ seccionActual.columnas[index].opciones ? seccionActual.columnas[index].opciones.join(', ') : 'Ninguna' }}</small>
                     </div>
                   </div>
                   <div class="field-actions">
@@ -797,6 +837,23 @@
             v-model="nuevaFila.valores[columna.nombre]"
           >
           
+          <!-- Select -->
+          <select
+            v-else-if="columna.tipo === 'select'"
+            :id="`modal-${columna.nombre}`"
+            class="form-control"
+            v-model="nuevaFila.valores[columna.nombre]"
+          >
+            <option value="">Selecciona una opción</option>
+            <option 
+              v-for="opcion in columna.opciones" 
+              :key="opcion" 
+              :value="opcion"
+            >
+              {{ opcion }}
+            </option>
+          </select>
+          
           <!-- Input numérico -->
           <input
             v-else-if="columna.tipo === 'numero'"
@@ -846,7 +903,8 @@ export default {
       nombre: '',
       tipo: 'texto',
       seccionRelacionada: '',
-      campoMostrar: ''
+      campoMostrar: '',
+      opcionesSelect: ''
     })
     const nuevaFila = reactive({
       valores: {} // Cambiado para que sea un objeto con valores
@@ -928,6 +986,9 @@ export default {
       if (!nuevoCampo.nombre || !nuevoCampo.nombre.trim()) return false
       if (nuevoCampo.tipo === 'relacional') {
         return nuevoCampo.seccionRelacionada && nuevoCampo.campoMostrar
+      }
+      if (nuevoCampo.tipo === 'select') {
+        return nuevoCampo.opcionesSelect && nuevoCampo.opcionesSelect.trim()
       }
       return true
     })
@@ -1218,6 +1279,7 @@ export default {
       nuevoCampo.tipo = 'texto'
       nuevoCampo.seccionRelacionada = ''
       nuevoCampo.campoMostrar = ''
+      nuevoCampo.opcionesSelect = ''
     }
 
     // Agregar campo
@@ -1258,6 +1320,15 @@ export default {
         }
         campoNuevo.seccionRelacionada = nuevoCampo.seccionRelacionada
         campoNuevo.campoMostrar = nuevoCampo.campoMostrar
+      }
+      
+      // Si es select, agregar las opciones
+      if (nuevoCampo.tipo === 'select') {
+        if (!nuevoCampo.opcionesSelect || !nuevoCampo.opcionesSelect.trim()) {
+          alert('Para campos select debes ingresar al menos una opción')
+          return
+        }
+        campoNuevo.opciones = nuevoCampo.opcionesSelect.split(',').map(opcion => opcion.trim()).filter(opcion => opcion)
       }
 
       // Agregar el campo
@@ -1499,6 +1570,7 @@ export default {
         case 'texto': return 'Texto'
         case 'numero': return 'Número'
         case 'fecha': return 'Fecha'
+        case 'select': return 'Select'
         case 'relacional': return `Relacional (${columna.seccionRelacionada})`
         default: return 'Texto'
       }
@@ -1512,6 +1584,7 @@ export default {
         case 'texto': return 'text-primary'
         case 'numero': return 'text-success'
         case 'fecha': return 'text-info'
+        case 'select': return 'text-secondary'
         case 'relacional': return 'text-warning'
         default: return 'text-primary'
       }
@@ -1641,6 +1714,14 @@ export default {
     watch(() => nuevoCampo.seccionRelacionada, () => {
       nuevoCampo.campoMostrar = ''
     })
+
+    // Función para actualizar opciones del select
+    const actualizarOpcionesSelect = (index) => {
+      const columna = seccionActual.value.columnas[index]
+      if (columna.opcionesString) {
+        columna.opciones = columna.opcionesString.split(',').map(opcion => opcion.trim()).filter(opcion => opcion)
+      }
+    }
 
     watch(() => seccionActual.value, () => {
       if (seccionActual.value) {
@@ -2159,6 +2240,8 @@ export default {
       toggleCalendar,
       saveCalendarSettings,
       loadCalendarData,
+      // Función para actualizar opciones del select
+      actualizarOpcionesSelect,
       // Funciones para registros paginados
       registros,
       pagination,
@@ -2686,6 +2769,12 @@ export default {
   background: #fff8e1;
   color: #f57c00;
   border-color: #ffecb3;
+}
+
+.field-tag.text-secondary {
+  background: #f8f9fa;
+  color: #6c757d;
+  border-color: #dee2e6;
 }
 
 .field-tag-more {

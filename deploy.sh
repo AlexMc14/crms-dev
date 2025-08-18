@@ -37,9 +37,13 @@ echo "📝 Haciendo commit del build..."
 git add dist/
 git commit -m "Build de producción $(date '+%Y-%m-%d %H:%M:%S')"
 
-# Push a GitHub
-echo "⬆️ Subiendo a GitHub..."
+# Push a GitHub (rama production)
+echo "⬆️ Subiendo a GitHub (rama production)..."
 git push origin production
+
+# Push a la rama main para GitHub Pages
+echo "⬆️ Subiendo a la rama main para GitHub Pages..."
+git push origin production:main --force
 
 if [ $? -eq 0 ]; then
     echo "✅ Deployment completado exitosamente!"

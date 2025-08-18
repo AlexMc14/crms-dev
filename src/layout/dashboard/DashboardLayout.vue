@@ -236,7 +236,7 @@ export default {
       onAuthStateChanged(auth, async (user) => {
         this.authState.isAuthenticated = !!user; 
         this.authState.user = user; // Guarda el objeto de usuario
-        this.lastLogin = user.metadata.lastSignInTime;
+        // this.lastLogin = user.metadata.lastSignInTime;
         // console.log('Entrooo', user.email);
         await setDoc(doc(db, "users", user.uid), {
           email: user.email,
@@ -298,6 +298,13 @@ export default {
         const res = await seccionesDinamicasService.getAll()
         this.crmSections = Array.isArray(res) ? res : (res.data || [])
         this.generateCrmRoutes();
+        
+        // Si estamos en /crm-dinamico y hay secciones disponibles, redirigir a la primera
+        if (this.$route.path === '/crm-dinamico' && this.crmSections.length > 0) {
+          const primeraSeccion = this.crmSections[0];
+          const seccionPath = `/crm-seccion/${this.sanitizePath(primeraSeccion.nombre)}`;
+          this.$router.push(seccionPath);
+        }
       } catch (error) {
         this.crmSections = [];
         this.crmRoutes = [];

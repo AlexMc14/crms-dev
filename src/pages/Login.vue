@@ -18,6 +18,7 @@
 <script>
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { setTenantId, plataformaLookup } from '../services/api';
+import { seccionesDinamicasService } from '../services/api/queries';
 import { db } from '../firebase';
 import { collection, getDocs, where, query } from 'firebase/firestore';
 
@@ -41,7 +42,25 @@ export default {
         if (lookupResp && lookupResp.plataformaId) {
           localStorage.setItem('tenantId', lookupResp.plataformaId);
           setTenantId(lookupResp.plataformaId);
-          this.$router.push('/');
+          // Obtener secciones del CRM y redirigir a la primera disponible
+          try {
+            const secciones = await seccionesDinamicasService.getAll();
+            const seccionesArray = Array.isArray(secciones) ? secciones : (secciones.data || []);
+            
+            if (seccionesArray.length > 0) {
+              // Redirigir a la primera sección disponible
+              const primeraSeccion = seccionesArray[0];
+              const seccionPath = `/crm-seccion/${this.sanitizePath(primeraSeccion.nombre)}`;
+              this.$router.push(seccionPath);
+            } else {
+              // Si no hay secciones, ir al CRM dinámico
+              this.$router.push('/crm-dinamico');
+            }
+          } catch (error) {
+            console.error('Error al cargar secciones:', error);
+            // Fallback al CRM dinámico
+            this.$router.push('/crm-dinamico');
+          }
         } else {
           this.errorMessage = 'No se pudo obtener la plataforma asociada a este usuario.';
           setTimeout(() => { this.errorMessage = ''; }, 3000);
@@ -61,6 +80,13 @@ export default {
           this.errorMessage = '';
         }, 3000);
       }
+    },
+    sanitizePath(name) {
+      // Convertir nombre a path válido (mismo método que en DashboardLayout)
+      return name.toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
     },
   }
 };

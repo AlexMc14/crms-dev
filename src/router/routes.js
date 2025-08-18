@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { getAuth } from 'firebase/auth';
+import { auth } from '../firebase';
 
 import Vue from 'vue';
 import Router from 'vue-router';

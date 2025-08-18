@@ -41,7 +41,7 @@ router.beforeEach(async (to, from, next) => {
     if (to.name === 'login') {
       // Si el usuario ya está autenticado, redirigir al dashboard
       if (currentUser) {
-        next({ name: 'dashboard' });
+        next({ name: 'crm-dinamico' });
         return;
       }
       // Si no está autenticado, permitir acceso al login
@@ -56,39 +56,39 @@ router.beforeEach(async (to, from, next) => {
     }
     
     // Si el usuario está autenticado y la ruta requiere auth, verificar datos del usuario
-    if (requiresAuth && currentUser) {
-      const userData = localStorage.getItem('userInform');
+    // if (requiresAuth && currentUser) {
+    //   const userData = localStorage.getItem('userInform');
       
-      // Si no hay datos del usuario en localStorage, obtenerlos de Firestore
-      if (!userData) {
-        try {
-          const q = query(collection(db, 'especialistas'), where('correo', '==', currentUser.email));
-          const querySnapshot = await getDocs(q);
+    //   // Si no hay datos del usuario en localStorage, obtenerlos de Firestore
+    //   if (!userData) {
+    //     try {
+    //       const q = query(collection(db, 'especialistas'), where('correo', '==', currentUser.email));
+    //       const querySnapshot = await getDocs(q);
           
-          if (querySnapshot.docs.length > 0) {
-            localStorage.setItem("userInform", JSON.stringify(querySnapshot.docs[0].data()));
-          } else {
-            console.error('No se encontró el usuario en la base de datos');
-          }
-        } catch (error) {
-          console.error('Error obteniendo datos del usuario:', error);
-        }
-      }
+    //       if (querySnapshot.docs.length > 0) {
+    //         localStorage.setItem("userInform", JSON.stringify(querySnapshot.docs[0].data()));
+    //       } else {
+    //         console.error('No se encontró el usuario en la base de datos');
+    //       }
+    //     } catch (error) {
+    //       console.error('Error obteniendo datos del usuario:', error);
+    //     }
+    //   }
       
-      // Verificar tenantId
-      const tenantId = localStorage.getItem('tenantId');
-      if (!tenantId) {
-        try {
-          const lookupResp = await plataformaLookup(currentUser.email);
-          if (lookupResp && lookupResp.plataformaId) {
-            localStorage.setItem('tenantId', lookupResp.plataformaId);
-            setTenantId(lookupResp.plataformaId);
-          }
-        } catch (error) {
-          console.error('Error obteniendo tenantId:', error);
-        }
-      }
-    }
+    //   // Verificar tenantId
+    //   const tenantId = localStorage.getItem('tenantId');
+    //   if (!tenantId) {
+    //     try {
+    //       const lookupResp = await plataformaLookup(currentUser.email);
+    //       if (lookupResp && lookupResp.plataformaId) {
+    //         localStorage.setItem('tenantId', lookupResp.plataformaId);
+    //         setTenantId(lookupResp.plataformaId);
+    //       }
+    //     } catch (error) {
+    //       console.error('Error obteniendo tenantId:', error);
+    //     }
+    //   }
+    // }
     
     // Permitir navegación
     next();

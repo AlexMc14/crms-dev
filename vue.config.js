@@ -1,5 +1,5 @@
 module.exports = {
-  publicPath: process.env.NODE_ENV === 'production' ? '/peritomedicotest/' : '/',
+  publicPath: process.env.NODE_ENV === 'production' ? '/crms-front/' : '/',
   outputDir: 'dist',
   assetsDir: 'assets',
   lintOnSave: false,

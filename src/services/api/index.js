@@ -2,8 +2,8 @@ import axios from 'axios'
 
 // Configuración base de axios
 const api = axios.create({
-  baseURL: process.env.VUE_APP_API_URL || 'http://localhost:3000',
-  // baseURL: process.env.VUE_APP_API_URL || 'https://crms-back.onrender.com',
+  // baseURL: process.env.VUE_APP_API_URL || 'http://localhost:3000',
+  baseURL: process.env.VUE_APP_API_URL || 'https://crms-back.onrender.com',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

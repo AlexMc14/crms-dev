@@ -45,7 +45,7 @@
     <div v-if="cargando" class="text-center">Cargando...</div>
     <div v-else-if="seccionActual" class="main-content">
       <!-- Gestión de campos para esta sección -->
-      <div class="table-section">
+      <div v-if="false" class="table-section">
         <div class="table-header">
           <h2>Gestión de Campos</h2>
           <div class="header-actions">

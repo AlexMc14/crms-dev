@@ -37,14 +37,8 @@ router.beforeEach(async (to, from, next) => {
     // Verificar si la ruta requiere autenticación
     const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
     
-    // Si es la página de login
+    // Si es la página de login, siempre permitir acceso
     if (to.name === 'login') {
-      // Si el usuario ya está autenticado, redirigir al dashboard
-      if (currentUser) {
-        next({ name: 'crm-dinamico' });
-        return;
-      }
-      // Si no está autenticado, permitir acceso al login
       next();
       return;
     }

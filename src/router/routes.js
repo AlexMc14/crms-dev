@@ -38,8 +38,8 @@ const routes = [
   {
     path: "/",
     component: DashboardLayout,
-    redirect: "/crm-dinamico",
-    meta: { requiresAuth: true },
+    redirect: "/login",
+    meta: { requiresAuth: false },
     children: [
       {
         path: "dashboard",

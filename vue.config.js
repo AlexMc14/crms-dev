@@ -1,5 +1,5 @@
 module.exports = {
-  publicPath: process.env.NODE_ENV === 'production' ? '/crms-front/' : '/',
+  publicPath: process.env.NODE_ENV === 'production' ? '/crms-dev/' : '/',
   outputDir: 'dist',
   assetsDir: 'assets',
   lintOnSave: false,

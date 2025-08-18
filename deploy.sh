@@ -43,7 +43,7 @@ git push origin production
 
 if [ $? -eq 0 ]; then
     echo "✅ Deployment completado exitosamente!"
-    echo "🌐 Tu aplicación estará disponible en: https://alexmc14.github.io/crms-front/"
+    echo "🌐 Tu aplicación estará disponible en: https://alexmc14.github.io/crms-dev/"
     echo "⏰ Puede tardar unos minutos en estar disponible"
 else
     echo "❌ Error al hacer push"

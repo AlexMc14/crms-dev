@@ -4,7 +4,7 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/crms-dev/_redirects"
   },
   {
-    "revision": "00ecf40c46c14d8fb0ef",
+    "revision": "8fe1adb44da38f368f87",
     "url": "/crms-dev/assets/css/app.7d581b51.css"
   },
   {
@@ -44,8 +44,8 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/crms-dev/assets/img/word.5656a2c2.png"
   },
   {
-    "revision": "00ecf40c46c14d8fb0ef",
-    "url": "/crms-dev/assets/js/app.7ed39f87.js"
+    "revision": "8fe1adb44da38f368f87",
+    "url": "/crms-dev/assets/js/app.af82a406.js"
   },
   {
     "revision": "9b18eedb31c8fee194d0",
@@ -100,7 +100,7 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/crms-dev/firebase-messaging-sw.js"
   },
   {
-    "revision": "0575e09d507ac58896aeb3699ff972ee",
+    "revision": "6b06f75f815fe78b2e31d4f6a44f554d",
     "url": "/crms-dev/index.html"
   },
   {

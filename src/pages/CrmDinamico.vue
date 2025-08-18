@@ -370,26 +370,42 @@ export default {
       const seccionRelacionada = seccion.nuevoCampoSeccion || ''
       console.log('AGREGAR CAMPO: slug relacionado:', seccionRelacionada, 'nombre:', nombre)
       if (!nombre || seccion.columnas.some(col => col.nombre === nombre)) return
+      
       const nuevoCampo = { nombre, tipo }
+      
       if (tipo === 'relacional' && seccionRelacionada) {
         nuevoCampo.seccion = seccionRelacionada
       }
+      
+      // Si es archivo, agregar configuración específica
+      if (tipo === 'archivo') {
+        nuevoCampo.configuracion = {
+          maxSize: 10 * 1024 * 1024, // 10MB
+          allowedTypes: ['*/*'], // Todos los tipos
+          multiple: true, // Permitir múltiples archivos
+          autoOrganize: true // Organizar automáticamente en Google Drive
+        }
+      }
+      
       seccion.columnas.push(nuevoCampo)
+      
       // Inicializar la nueva propiedad en todas las filas existentes
       seccion.datos.forEach(fila => {
         if (!(nombre in fila)) {
-          fila[nombre] = ''
+          // Para campos de archivo, inicializar como array vacío
+          fila[nombre] = tipo === 'archivo' ? [] : ''
         }
       })
+      
       // Inicializar la nueva propiedad en nuevaFila
       if (!(nombre in seccion.nuevaFila)) {
-        seccion.nuevaFila[nombre] = ''
+        seccion.nuevaFila[nombre] = tipo === 'archivo' ? [] : ''
       }
-      seccion.datos.forEach(fila => { fila[nombre] = '' })
-      seccion.nuevaFila[nombre] = ''
+      
       seccion.nuevoCampoNombre = ''
       seccion.nuevoCampoTipo = 'texto'
       seccion.nuevoCampoSeccion = ''
+      
       try {
         await seccionesDinamicasService.update(seccion._id || seccion.id, seccion)
         await cargarSecciones()
@@ -403,11 +419,18 @@ export default {
       const seccion = secciones.value[seccionIndex]
       const filaNueva = {}
       seccion.columnas.forEach(col => {
-        filaNueva[col.nombre] = seccion.nuevaFila[col.nombre] || ''
+        const tipoCampo = col.tipo || 'texto'
+        // Para campos de archivo, usar array vacío si no hay valor
+        filaNueva[col.nombre] = tipoCampo === 'archivo' 
+          ? (seccion.nuevaFila[col.nombre] || [])
+          : (seccion.nuevaFila[col.nombre] || '')
       })
       try {
         await seccionesDinamicasService.createRegistro(seccion._id || seccion.id, filaNueva)
-        seccion.columnas.forEach(col => { seccion.nuevaFila[col.nombre] = '' })
+        seccion.columnas.forEach(col => { 
+          const tipoCampo = col.tipo || 'texto'
+          seccion.nuevaFila[col.nombre] = tipoCampo === 'archivo' ? [] : ''
+        })
         await cargarSecciones()
       } catch (e) {
         alert('Error al agregar fila')

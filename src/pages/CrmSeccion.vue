@@ -275,6 +275,17 @@
                         </option>
                       </select>
                     </template>
+                    <template v-else-if="columna.tipo === 'archivo'">
+                      <div class="file-upload-container">
+                        <FileUpload
+                          :case-id="seccionActual._id || seccionActual.id"
+                          :case-name="seccionActual.nombre"
+                          v-model="fila.valores[columna.nombre]"
+                          @files-uploaded="onFilesUploaded"
+                          :key="`file-upload-${fila._id || filaIndex}-${columna.nombre}`"
+                        />
+                      </div>
+                    </template>
                     <template v-else>
                       <input
                         type="text"
@@ -635,6 +646,7 @@
                     <option value="fecha">Fecha</option>
                     <option value="select">Select</option>
                     <option value="relacional">Relacional</option>
+                    <option value="archivo">Archivo (Google Drive)</option>
                   </select>
                 </div>
               </div>
@@ -720,6 +732,7 @@
                         <option value="fecha">Fecha</option>
                         <option value="select">Select</option>
                         <option value="relacional">Relacional</option>
+                        <option value="archivo">Archivo (Google Drive)</option>
                       </select>
                     </div>
                     <div class="field-info-item" v-if="seccionActual.columnas[index].tipo === 'relacional'">
@@ -863,6 +876,17 @@
             v-model="nuevaFila.valores[columna.nombre]"
             :placeholder="`Ingrese ${columna.nombre}`"
           >
+          
+          <!-- Campo de archivo -->
+          <div v-else-if="columna.tipo === 'archivo'" class="file-upload-container">
+            <FileUpload
+              :case-id="seccionActual._id || seccionActual.id"
+              :case-name="seccionActual.nombre"
+              v-model="nuevaFila.valores[columna.nombre]"
+              @files-uploaded="onFilesUploaded"
+              :key="`modal-file-upload-${columna.nombre}`"
+            />
+          </div>
         </div>
         
         <div class="modal-actions">
@@ -883,13 +907,16 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { seccionesDinamicasService } from '@/services/api/queries'
 import CalendarView from '@/components/CalendarView.vue'
 import { useRegistrosPaginados } from '@/composables/useRegistrosPaginados'
+import { useArchivosSeccion } from '@/composables/useArchivosSeccion'
 import FiltrosDinamicos from '@/components/FiltrosDinamicos.vue'
+import FileUpload from '@/components/FileUpload.vue'
 
 export default {
   name: 'CrmSeccion',
   components: {
     CalendarView,
-    FiltrosDinamicos
+    FiltrosDinamicos,
+    FileUpload
   },
   props: {
     sectionName: {
@@ -943,6 +970,9 @@ export default {
 
     // Composable de registros paginados
     const { registros, pagination, filters, loading, cargarRegistros } = useRegistrosPaginados()
+    
+    // Composable para manejo de archivos
+    const { sincronizarArchivos, obtenerInfoArchivos, formatearTamañoArchivo } = useArchivosSeccion()
     
     // Estado para vista de registros paginados (siempre activa ahora)
     const usarRegistrosPaginados = ref(true)
@@ -1268,8 +1298,11 @@ export default {
         
         seccionActual.value.columnas.forEach(col => {
           const nombreCampo = typeof col === 'string' ? col : col.nombre
-          nuevaFila.valores[nombreCampo] = ''
+          const tipoCampo = typeof col === 'string' ? 'texto' : col.tipo
+          // Para campos de archivo, inicializar como array vacío
+          nuevaFila.valores[nombreCampo] = tipoCampo === 'archivo' ? [] : ''
         })
+        console.log('Nueva fila inicializada:', nuevaFila.valores)
       }
     }
 
@@ -1331,12 +1364,23 @@ export default {
         campoNuevo.opciones = nuevoCampo.opcionesSelect.split(',').map(opcion => opcion.trim()).filter(opcion => opcion)
       }
 
+      // Si es archivo, agregar configuración específica
+      if (nuevoCampo.tipo === 'archivo') {
+        campoNuevo.configuracion = {
+          maxSize: 10 * 1024 * 1024, // 10MB
+          allowedTypes: ['*/*'], // Todos los tipos
+          multiple: true, // Permitir múltiples archivos
+          autoOrganize: true // Organizar automáticamente en Google Drive
+        }
+      }
+
       // Agregar el campo
       seccionActual.value.columnas.push(campoNuevo)
       
       // Actualizar todos los registros existentes con el nuevo campo vacío
       seccionActual.value.datos.forEach(fila => {
-        fila[nombreCampo] = ''
+        // Para campos de archivo, inicializar como array vacío
+        fila[nombreCampo] = nuevoCampo.tipo === 'archivo' ? [] : ''
       })
       
       limpiarFormularioCampo()
@@ -1356,7 +1400,11 @@ export default {
       const filaNueva = {}
       seccionActual.value.columnas.forEach(col => {
         const nombreCampo = typeof col === 'string' ? col : col.nombre
-        filaNueva[nombreCampo] = nuevaFila.valores[nombreCampo] || ''
+        const tipoCampo = typeof col === 'string' ? 'texto' : col.tipo
+        // Para campos de archivo, usar array vacío si no hay valor
+        filaNueva[nombreCampo] = tipoCampo === 'archivo' 
+          ? (nuevaFila.valores[nombreCampo] || [])
+          : (nuevaFila.valores[nombreCampo] || '')
       })
       
       try {
@@ -1388,8 +1436,17 @@ export default {
       const filaNueva = {}
       seccionActual.value.columnas.forEach(col => {
         const nombreCampo = typeof col === 'string' ? col : col.nombre
-        filaNueva[nombreCampo] = nuevaFila.valores[nombreCampo] || ''
+        const tipoCampo = typeof col === 'string' ? 'texto' : col.tipo
+        
+        // Para campos de archivo, usar el array de archivos o array vacío
+        if (tipoCampo === 'archivo') {
+          filaNueva[nombreCampo] = nuevaFila.valores[nombreCampo] || []
+        } else {
+          filaNueva[nombreCampo] = nuevaFila.valores[nombreCampo] || ''
+        }
       })
+      
+      console.log('Fila nueva a crear:', filaNueva)
       
       try {
         const res = await seccionesDinamicasService.createRegistro(
@@ -1404,6 +1461,7 @@ export default {
         showAddModal.value = false
         inicializarNuevaFila()
       } catch (e) {
+        console.error('Error al agregar registro:', e)
         alert('Error al agregar registro')
       }
     }
@@ -1696,6 +1754,13 @@ export default {
       inicializarNuevaFila()
     })
 
+    // Watcher para inicializar nueva fila cuando se abre el modal
+    watch(showAddModal, (isOpen) => {
+      if (isOpen) {
+        inicializarNuevaFila()
+      }
+    })
+
     // Watcher para actualizar registros paginados cuando cambia la sección
     watch(seccionActual, async (newSeccion) => {
       if (newSeccion) {
@@ -1721,6 +1786,13 @@ export default {
       if (columna.opcionesString) {
         columna.opciones = columna.opcionesString.split(',').map(opcion => opcion.trim()).filter(opcion => opcion)
       }
+    }
+
+    // Función para manejar archivos subidos
+    const onFilesUploaded = (uploadedFile) => {
+      console.log('Archivo subido:', uploadedFile)
+      // Los archivos se actualizan automáticamente a través del v-model
+      // Esta función puede usarse para mostrar notificaciones o realizar acciones adicionales
     }
 
     watch(() => seccionActual.value, () => {
@@ -2260,6 +2332,7 @@ export default {
       // Funciones para modal de agregar
       showAddModal,
       agregarFilaDesdeModal,
+      onFilesUploaded,
     }
   }
 }
@@ -3649,6 +3722,39 @@ export default {
 /* Estilos para el modal de agregar registros */
 .add-record-modal {
   padding: 20px 0;
+}
+
+.file-upload-container {
+  margin-top: 10px;
+}
+
+/* Estilos para campos de archivo en la tabla */
+.table .file-upload-container {
+  min-width: 200px;
+}
+
+.table .file-upload-component {
+  font-size: 0.9rem;
+}
+
+/* Ajustar el tamaño del componente en la tabla */
+.table .drop-zone {
+  padding: 8px;
+  min-height: 60px;
+}
+
+.table .drop-zone h4 {
+  font-size: 0.9rem;
+  margin: 0 0 5px 0;
+}
+
+.table .drop-zone p {
+  font-size: 0.8rem;
+  margin: 0 0 5px 0;
+}
+
+.table .drop-zone small {
+  font-size: 0.7rem;
 }
 
 .add-record-modal .form-group {

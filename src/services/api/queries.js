@@ -222,6 +222,9 @@ export const seccionesDinamicasService = {
   // Actualizar registro
   updateRegistro: (seccionId, registroId, data) => restService.put(`/secciones-dinamicas/${seccionId}/registros/${registroId}`, data),
 
+  // Actualizar archivos de un registro
+  updateRegistroArchivos: (seccionId, registroId, archivos) => restService.put(`/secciones-dinamicas/${seccionId}/registros/${registroId}/archivos`, { archivos }),
+
   // Eliminar registro
   deleteRegistro: (seccionId, registroId) => restService.delete(`/secciones-dinamicas/${seccionId}/registros/${registroId}`),
 

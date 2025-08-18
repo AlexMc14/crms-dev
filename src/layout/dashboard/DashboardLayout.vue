@@ -99,6 +99,17 @@
         </mobile-menu>
       </side-bar>
       <div class="main-panel">
+        <div v-if="isMobile" class="mobile-buttons">
+          <button
+            class="btn btn-primary mobile-menu-button"
+            type="button"
+            @click="toggleSidebarVisibility"
+            aria-label="Menú"
+            title="Menú"
+          >
+            <i class="ti-menu"></i>
+          </button>
+        </div>
         <!-- <top-navbar></top-navbar> -->
         <router-view></router-view>
         <content-footer></content-footer>
@@ -136,6 +147,7 @@ export default {
         isAuthenticated: false,
         user: null
       },
+      isMobile: false,
       routesWatch: [],
       crmSections: [],
       routes: [
@@ -192,6 +204,12 @@ export default {
       if (this.$sidebar.showSidebar) {
         this.$sidebar.displaySidebar(false);
       }
+    },
+    toggleSidebarVisibility() {
+      this.$sidebar.displaySidebar(!this.$sidebar.showSidebar);
+    },
+    updateIsMobile() {
+      this.isMobile = window.innerWidth <= 992;
     },
     needShow(route) {
       if (route === '#' || route === undefined) return true;
@@ -320,6 +338,8 @@ export default {
     this.checkAutoOpenDropdown();
     await this.loadCrmSections();
     this.checkLogIn();
+    this.updateIsMobile();
+    window.addEventListener('resize', this.updateIsMobile);
     
     // Cargar secciones del CRM después de un pequeño delay para asegurar que todo esté listo
     setTimeout(() => {
@@ -337,6 +357,9 @@ export default {
     window.addEventListener('crmSectionsUpdated', () => {
       this.loadCrmSections();
     });
+  },
+  beforeDestroy() {
+    window.removeEventListener('resize', this.updateIsMobile);
   },
   watch: {
     '$route'(to, from) {
@@ -454,6 +477,19 @@ export default {
     padding-left: 25px;
     padding-right: 25px;
     opacity: 0.7;
+}
+
+.mobile-menu-button {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1050;
+}
+
+@media (min-width: 993px) {
+  .mobile-menu-button {
+    display: none;
+  }
 }
 
 @media (max-width: 440px) {

@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/4.3.1/workbox-sw.js");
 
 importScripts(
-  "/crms-dev/precache-manifest.05981e792090cf6d679e5d6a74f23685.js"
+  "/crms-dev/precache-manifest.75a4d6456837db096795d42034c610e0.js"
 );
 
 workbox.core.setCacheNameDetails({prefix: "Informes-Medicos-Periciales"});

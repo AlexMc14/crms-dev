@@ -1,0 +1,2 @@
+# Redirige todas las rutas a index.html para el modo history de Vue Router
+/*    ../dist/index.html   200

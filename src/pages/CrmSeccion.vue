@@ -45,7 +45,7 @@
     <div v-if="cargando" class="text-center">Cargando...</div>
     <div v-else-if="seccionActual" class="main-content">
       <!-- Gestión de campos para esta sección -->
-      <div v-if="false" class="table-section">
+      <div class="table-section">
         <div class="table-header">
           <h2>Gestión de Campos</h2>
           <div class="header-actions">
@@ -106,7 +106,7 @@
       </div>
 
       <!-- Selector de vista -->
-      <div class="view-selector-section">
+      <div v-if="calendarEnabled" class="view-selector-section">
         <div class="view-tabs">
           <button 
             class="view-tab" 
@@ -176,7 +176,7 @@
           </div>
         </div>
         <div class="table-responsive">
-          <table class="table table-striped table-hover">
+          <table class="table table-striped table-hover table-scrollable">
             <thead>
               <tr>
                 <th v-for="columna in seccionActual.columnas" :key="columna.nombre || columna" class="text-capitalize">
@@ -275,6 +275,39 @@
                         </option>
                       </select>
                     </template>
+                    <template v-else-if="columna.tipo === 'telefono'">
+                      <input
+                        type="tel"
+                        class="form-control form-control-sm"
+                        v-model="fila.valores[columna.nombre]"
+                        :placeholder="'Ingrese ' + columna.nombre"
+                      >
+                    </template>
+                    <template v-else-if="columna.tipo === 'correo'">
+                      <input
+                        type="email"
+                        class="form-control form-control-sm"
+                        v-model="fila.valores[columna.nombre]"
+                        :placeholder="'Ingrese ' + columna.nombre"
+                      >
+                    </template>
+                    <template v-else-if="columna.tipo === 'enlace'">
+                      <input
+                        type="url"
+                        class="form-control form-control-sm"
+                        v-model="fila.valores[columna.nombre]"
+                        :placeholder="'Ingrese ' + columna.nombre"
+                      >
+                    </template>
+                    <template v-else-if="columna.tipo === 'textarea'">
+                      <textarea
+                        class="form-control form-control-sm"
+                        v-model="fila.valores[columna.nombre]"
+                        :placeholder="'Ingrese ' + columna.nombre"
+                        rows="3"
+                        style="resize: vertical; min-height: 60px;"
+                      ></textarea>
+                    </template>
                     <template v-else-if="columna.tipo === 'archivo'">
                       <div class="file-upload-container">
                         <FileUpload
@@ -296,10 +329,59 @@
                     </template>
                   </template>
                   <template v-else>
-                    {{ fila.valores[columna.nombre] }}
+                    <!-- Campos especiales en modo visualización -->
+                    <template v-if="columna.tipo === 'telefono' && fila.valores[columna.nombre]">
+                      <span 
+                        class="clickable-value phone-value"
+                        @click="hacerLlamada(fila.valores[columna.nombre])"
+                        :title="'Clic para llamar a ' + fila.valores[columna.nombre]"
+                      >
+                        {{ fila.valores[columna.nombre] }}
+                      </span>
+                    </template>
+                    <template v-else-if="columna.tipo === 'correo' && fila.valores[columna.nombre]">
+                      <span 
+                        class="clickable-value email-value"
+                        @click="abrirCorreo(fila.valores[columna.nombre])"
+                        :title="'Clic para enviar correo a ' + fila.valores[columna.nombre]"
+                      >
+                        {{ fila.valores[columna.nombre] }}
+                      </span>
+                    </template>
+                    <template v-else-if="columna.tipo === 'enlace' && fila.valores[columna.nombre]">
+                      <span 
+                        class="clickable-value link-value"
+                        @click="abrirEnlace(fila.valores[columna.nombre])"
+                        :title="'Clic para abrir enlace'"
+                      >
+                        {{ fila.valores[columna.nombre] }}
+                      </span>
+                    </template>
+                    <template v-else-if="columna.tipo === 'textarea' && fila.valores[columna.nombre]">
+                      <div class="textarea-preview">
+                        {{ fila.valores[columna.nombre] }}
+                      </div>
+                    </template>
+                    <template v-else-if="fila.valores[columna.nombre] && fila.valores[columna.nombre].length > 30">
+                      <span 
+                        class="long-text"
+                        :title="fila.valores[columna.nombre]"
+                      >
+                        {{ fila.valores[columna.nombre] }}
+                      </span>
+                    </template>
+                    <template v-else>
+                      {{ fila.valores[columna.nombre] }}
+                    </template>
                   </template>
                 </td>
-                <td class="text-center">
+                <td class="text-center" style="width: 150px; min-width: 150px;">
+                  <button class="btn-view" @click="verRegistro(fila)" title="Ver registro completo">
+                    <i class="ti-eye"></i>
+                  </button>
+                  <button class="btn-edit" @click="filaEditando = fila._id" title="Editar">
+                    <i class="ti-pencil"></i>
+                  </button>
                   <button class="btn-delete" @click="eliminarFila(filaIndex)" title="Eliminar fila">
                     <i class="ti-trash"></i>
                   </button>
@@ -309,15 +391,12 @@
                      <i class="ti-save"></i>
                    </button>
                  </template>
-                 <!-- Para filas existentes -->
-                 <template v-else>
-                   <button v-if="filaEditando !== fila._id" class="btn-edit ml-2" @click="filaEditando = fila._id" title="Editar">
-                     <i class="ti-pencil"></i>
-                   </button>
-                   <button v-if="filaEditando === fila._id" class="btn-add" @click="guardarFilaEditada(fila, filaIndex); filaEditando = null" title="Guardar cambios">
+                 <!-- Para filas existentes en modo edición -->
+                 <template v-else-if="filaEditando === fila._id">
+                   <button class="btn-add" @click="guardarFilaEditada(fila, filaIndex); filaEditando = null" title="Guardar cambios">
                      <i class="ti-save"></i>
                    </button>
-                   <button v-if="filaEditando === fila._id" class="btn-edit" @click="revertirFila(fila, filaIndex); filaEditando = null" title="Cancelar">
+                   <button class="btn-edit" @click="revertirFila(fila, filaIndex); filaEditando = null" title="Cancelar">
                      <i class="ti-close"></i>
                    </button>
                  </template>
@@ -385,14 +464,14 @@
           <h2>{{ calendarTitle || 'Calendario' }}</h2>
           <div class="calendar-controls">
             <span class="record-count">{{ calendarEvents.length }} eventos</span>
-            <button class="btn-config" @click="showCalendarSettings = true">
+            <button v-if="false" class="btn-config" @click="showCalendarSettings = true">
               <i class="ti-settings"></i> Configurar Calendario
             </button>
           </div>
         </div>
         
         <!-- Debug info -->
-        <div class="debug-info">
+        <div v-if="false" class="debug-info">
           <h6>Estado del Calendario:</h6>
           <p>✅ Calendario habilitado: {{ calendarEnabled }}</p>
           <p>📅 Campo de fecha: {{ dateFieldName || 'No configurado' }}</p>
@@ -642,8 +721,12 @@
                   <label>Tipo de campo</label>
                   <select class="form-control" v-model="nuevoCampo.tipo">
                     <option value="texto">Texto</option>
+                    <option value="textarea">Área de texto</option>
                     <option value="numero">Número</option>
                     <option value="fecha">Fecha</option>
+                    <option value="telefono">Teléfono</option>
+                    <option value="correo">Correo</option>
+                    <option value="enlace">Enlace</option>
                     <option value="select">Select</option>
                     <option value="relacional">Relacional</option>
                     <option value="archivo">Archivo (Google Drive)</option>
@@ -728,8 +811,12 @@
                       <label>Tipo:</label>
                       <select class="form-control" v-model="seccionActual.columnas[index].tipo">
                         <option value="texto">Texto</option>
+                        <option value="textarea">Área de texto</option>
                         <option value="numero">Número</option>
                         <option value="fecha">Fecha</option>
+                        <option value="telefono">Teléfono</option>
+                        <option value="correo">Correo</option>
+                        <option value="enlace">Enlace</option>
                         <option value="select">Select</option>
                         <option value="relacional">Relacional</option>
                         <option value="archivo">Archivo (Google Drive)</option>
@@ -786,6 +873,125 @@
             <h6>No hay campos definidos</h6>
             <p>Agrega campos para comenzar a gestionar datos en esta sección.</p>
           </div>
+        </div>
+      </div>
+    </b-modal>
+
+    <!-- Modal para ver registro completo -->
+    <b-modal 
+      v-model="showViewModal" 
+      title="Detalles del Registro" 
+      size="lg"
+      hide-footer
+    >
+      <div class="view-record-modal" v-if="registroSeleccionado">
+        <div class="record-header">
+          <h4 class="record-title">
+            <i class="ti-database"></i>
+            Registro de {{ seccionActual ? seccionActual.nombre : 'Sección' }}
+          </h4>
+        </div>
+        
+        <div class="record-content">
+          <div class="fields-grid">
+            <div 
+              v-for="columna in seccionActual.columnas" 
+              :key="columna.nombre"
+              class="field-item"
+            >
+              <div class="field-label">
+                {{ (columna.nombre || columna).charAt(0).toUpperCase() + (columna.nombre || columna).slice(1) }}
+              </div>
+              <div class="field-value" :class="getFieldValueClass(columna)">
+                <!-- Campo de teléfono -->
+                <template v-if="columna.tipo === 'telefono' && registroSeleccionado.valores[columna.nombre]">
+                  <span 
+                    class="clickable-value phone-value"
+                    @click="hacerLlamada(registroSeleccionado.valores[columna.nombre])"
+                    :title="'Clic para llamar a ' + registroSeleccionado.valores[columna.nombre]"
+                  >
+                    {{ registroSeleccionado.valores[columna.nombre] }}
+                  </span>
+                </template>
+                
+                <!-- Campo de correo -->
+                <template v-else-if="columna.tipo === 'correo' && registroSeleccionado.valores[columna.nombre]">
+                  <span 
+                    class="clickable-value email-value"
+                    @click="abrirCorreo(registroSeleccionado.valores[columna.nombre])"
+                    :title="'Clic para enviar correo a ' + registroSeleccionado.valores[columna.nombre]"
+                  >
+                    {{ registroSeleccionado.valores[columna.nombre] }}
+                  </span>
+                </template>
+                
+                <!-- Campo de enlace -->
+                <template v-else-if="columna.tipo === 'enlace' && registroSeleccionado.valores[columna.nombre]">
+                  <span 
+                    class="clickable-value link-value"
+                    @click="abrirEnlace(registroSeleccionado.valores[columna.nombre])"
+                    :title="'Clic para abrir enlace'"
+                  >
+                    {{ registroSeleccionado.valores[columna.nombre] }}
+                  </span>
+                </template>
+                
+                <!-- Campo de textarea -->
+                <template v-else-if="columna.tipo === 'textarea' && registroSeleccionado.valores[columna.nombre]">
+                  <div class="textarea-content">
+                    <pre>{{ registroSeleccionado.valores[columna.nombre] }}</pre>
+                  </div>
+                </template>
+                
+                <!-- Campo de fecha -->
+                <template v-else-if="columna.tipo === 'fecha' && registroSeleccionado.valores[columna.nombre]">
+                  <span class="date-value">
+                    {{ formatearFecha(registroSeleccionado.valores[columna.nombre]) }}
+                  </span>
+                </template>
+                
+                <!-- Campo de archivo -->
+                <template v-else-if="columna.tipo === 'archivo' && registroSeleccionado.valores[columna.nombre]">
+                  <div class="file-list">
+                    <div v-for="(archivo, index) in registroSeleccionado.valores[columna.nombre]" :key="index" class="file-item">
+                      <i class="ti-file"></i>
+                      <span>{{ archivo.name || archivo }}</span>
+                    </div>
+                  </div>
+                </template>
+                
+                <!-- Campo de select -->
+                <template v-else-if="columna.tipo === 'select' && registroSeleccionado.valores[columna.nombre]">
+                  <span class="select-value">
+                    {{ registroSeleccionado.valores[columna.nombre] }}
+                  </span>
+                </template>
+                
+                <!-- Campo de número -->
+                <template v-else-if="columna.tipo === 'numero' && registroSeleccionado.valores[columna.nombre]">
+                  <span class="number-value">
+                    {{ registroSeleccionado.valores[columna.nombre] }}
+                  </span>
+                </template>
+                
+                <!-- Campo de texto -->
+                <template v-else>
+                  <span class="text-value">
+                    {{ registroSeleccionado.valores[columna.nombre] || 'Sin valor' }}
+                  </span>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="record-footer">
+          <button class="btn-modal-secondary" @click="showViewModal = false">
+            <i class="ti-close"></i> Cerrar
+          </button>
+          <button class="btn-modal-primary" @click="editarDesdeModal">
+            <i class="ti-pencil"></i> Editar Registro
+          </button>
         </div>
       </div>
     </b-modal>
@@ -849,6 +1055,47 @@
             class="form-control"
             v-model="nuevaFila.valores[columna.nombre]"
           >
+          
+          <!-- Input de teléfono -->
+          <input
+            v-else-if="columna.tipo === 'telefono'"
+            :id="`modal-${columna.nombre}`"
+            type="tel"
+            class="form-control"
+            v-model="nuevaFila.valores[columna.nombre]"
+            :placeholder="`Ingrese ${columna.nombre}`"
+          >
+          
+          <!-- Input de correo -->
+          <input
+            v-else-if="columna.tipo === 'correo'"
+            :id="`modal-${columna.nombre}`"
+            type="email"
+            class="form-control"
+            v-model="nuevaFila.valores[columna.nombre]"
+            :placeholder="`Ingrese ${columna.nombre}`"
+          >
+          
+          <!-- Input de enlace -->
+          <input
+            v-else-if="columna.tipo === 'enlace'"
+            :id="`modal-${columna.nombre}`"
+            type="url"
+            class="form-control"
+            v-model="nuevaFila.valores[columna.nombre]"
+            :placeholder="`Ingrese ${columna.nombre}`"
+          >
+          
+          <!-- Textarea -->
+          <textarea
+            v-else-if="columna.tipo === 'textarea'"
+            :id="`modal-${columna.nombre}`"
+            class="form-control"
+            v-model="nuevaFila.valores[columna.nombre]"
+            :placeholder="`Ingrese ${columna.nombre}`"
+            rows="4"
+            style="resize: vertical; min-height: 80px;"
+          ></textarea>
           
           <!-- Select -->
           <select
@@ -939,6 +1186,8 @@ export default {
     const showClearModal = ref(false)
     const showFieldsModal = ref(false)
     const showAddModal = ref(false)
+    const showViewModal = ref(false)
+    const registroSeleccionado = ref(null)
     const campoAcordeonAbierto = ref(null)
     const mensajeExitoCampo = ref('')
     const cargando = ref(true)
@@ -1626,8 +1875,12 @@ export default {
       
       switch (columna.tipo) {
         case 'texto': return 'Texto'
+        case 'textarea': return 'Área de texto'
         case 'numero': return 'Número'
         case 'fecha': return 'Fecha'
+        case 'telefono': return 'Teléfono'
+        case 'correo': return 'Correo'
+        case 'enlace': return 'Enlace'
         case 'select': return 'Select'
         case 'relacional': return `Relacional (${columna.seccionRelacionada})`
         default: return 'Texto'
@@ -1640,8 +1893,12 @@ export default {
       
       switch (columna.tipo) {
         case 'texto': return 'text-primary'
+        case 'textarea': return 'text-info'
         case 'numero': return 'text-success'
         case 'fecha': return 'text-info'
+        case 'telefono': return 'text-success'
+        case 'correo': return 'text-info'
+        case 'enlace': return 'text-warning'
         case 'select': return 'text-secondary'
         case 'relacional': return 'text-warning'
         default: return 'text-primary'
@@ -1738,7 +1995,7 @@ export default {
 
     // Revertir cambios de una fila
     const revertirFila = (fila, filaIndex) => {
-      fila.valores = { ...fila._original }
+      // fila.valores = { ...fila._original }
       refreshKey.value++
     }
 
@@ -1793,6 +2050,115 @@ export default {
       console.log('Archivo subido:', uploadedFile)
       // Los archivos se actualizan automáticamente a través del v-model
       // Esta función puede usarse para mostrar notificaciones o realizar acciones adicionales
+    }
+
+    // Función para hacer llamada telefónica
+    const hacerLlamada = (telefono) => {
+      if (!telefono || !telefono.trim()) {
+        alert('No hay número de teléfono para llamar')
+        return
+      }
+      
+      // Limpiar el número de teléfono (solo números y +)
+      const numeroLimpio = telefono.replace(/[^\d+]/g, '')
+      
+      if (numeroLimpio) {
+        // En dispositivos móviles, usar tel: protocol
+        if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+          window.location.href = `tel:${numeroLimpio}`
+        } else {
+          // En desktop, mostrar mensaje o usar servicios web
+          alert(`Para llamar al número: ${numeroLimpio}`)
+        }
+      } else {
+        alert('Número de teléfono inválido')
+      }
+    }
+
+    // Función para abrir gestor de correo
+    const abrirCorreo = (email) => {
+      if (!email || !email.trim()) {
+        alert('No hay dirección de correo para abrir')
+        return
+      }
+      
+      // Validar formato de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        alert('Por favor ingrese un email válido')
+        return
+      }
+      
+      // Abrir gestor de correo predeterminado
+      window.location.href = `mailto:${email}`
+    }
+
+    // Función para abrir enlace
+    const abrirEnlace = (url) => {
+      if (!url || !url.trim()) {
+        alert('No hay enlace para abrir')
+        return
+      }
+      
+      // Asegurar que la URL tenga protocolo
+      let urlCompleta = url
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        urlCompleta = 'https://' + url
+      }
+      
+      // Validar URL
+      try {
+        new URL(urlCompleta)
+        // Abrir en nueva ventana
+        window.open(urlCompleta, '_blank', 'noopener,noreferrer')
+      } catch (error) {
+        alert('Por favor ingrese una URL válida')
+      }
+    }
+
+    // Función para ver registro completo
+    const verRegistro = (fila) => {
+      registroSeleccionado.value = { ...fila }
+      showViewModal.value = true
+    }
+
+    // Función para editar desde el modal de vista
+    const editarDesdeModal = () => {
+      showViewModal.value = false
+      // Buscar la fila en el array y activar modo edición
+      const index = registros.value.findIndex(r => r._id === registroSeleccionado.value._id)
+      if (index !== -1) {
+        filaEditando.value = registroSeleccionado.value._id
+        // Hacer scroll a la fila
+        setTimeout(() => {
+          const tableRow = document.querySelector(`tr[data-id="${registroSeleccionado.value._id}"]`)
+          if (tableRow) {
+            tableRow.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 100)
+      }
+    }
+
+    // Función para obtener clase del valor del campo
+    const getFieldValueClass = (columna) => {
+      const tipo = typeof columna === 'string' ? 'texto' : columna.tipo
+      return `field-value-${tipo}`
+    }
+
+    // Función para formatear fecha
+    const formatearFecha = (fecha) => {
+      if (!fecha) return 'Sin fecha'
+      try {
+        const fechaObj = new Date(fecha)
+        return fechaObj.toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          weekday: 'long'
+        })
+      } catch (error) {
+        return fecha
+      }
     }
 
     watch(() => seccionActual.value, () => {
@@ -2333,6 +2699,17 @@ export default {
       showAddModal,
       agregarFilaDesdeModal,
       onFilesUploaded,
+      // Funciones para modal de vista
+      showViewModal,
+      registroSeleccionado,
+      verRegistro,
+      editarDesdeModal,
+      getFieldValueClass,
+      formatearFecha,
+      // Funciones para nuevos tipos de campos
+      hacerLlamada,
+      abrirCorreo,
+      abrirEnlace,
     }
   }
 }
@@ -2509,8 +2886,14 @@ export default {
   border: none;
   cursor: pointer;
   font-size: 16px;
-  margin-right: 8px;
+  margin-right: 12px;
   transition: color 0.2s;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.btn-delete:last-child, .btn-edit:last-child, .btn-view:last-child {
+  margin-right: 0;
 }
 
 .btn-edit {
@@ -2522,7 +2905,7 @@ export default {
 }
 
 .btn-view {
-  color: #e67e22;
+  color: #17a2b8;
 }
 
 .btn-edit:hover {
@@ -2534,7 +2917,7 @@ export default {
 }
 
 .btn-view:hover {
-  color: #d35400;
+  color: #138496;
 }
 
 .text-capitalize {
@@ -2830,6 +3213,12 @@ export default {
   background: #e8f5e8;
   color: #2e7d32;
   border-color: #c8e6c9;
+}
+
+.field-tag.text-info {
+  background: #e0f7fa;
+  color: #0277bd;
+  border-color: #b2ebf2;
 }
 
 .field-tag.text-info {
@@ -3728,9 +4117,361 @@ export default {
   margin-top: 10px;
 }
 
+/* Estilos para campos clickeables */
+.clickable-field {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.clickable-field:hover {
+  background-color: #f8f9fa;
+  border-color: #1b6659;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(27, 102, 89, 0.15);
+}
+
+.clickable-field:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(27, 102, 89, 0.2);
+}
+
+/* Estilos específicos para cada tipo de campo */
+.clickable-field[type="tel"] {
+  border-left: 4px solid #28a745;
+}
+
+.clickable-field[type="tel"]:hover {
+  border-left-color: #20c997;
+  background: linear-gradient(90deg, rgba(40, 167, 69, 0.05) 0%, transparent 100%);
+}
+
+.clickable-field[type="email"] {
+  border-left: 4px solid #007bff;
+}
+
+.clickable-field[type="email"]:hover {
+  border-left-color: #0056b3;
+  background: linear-gradient(90deg, rgba(0, 123, 255, 0.05) 0%, transparent 100%);
+}
+
+.clickable-field[type="url"] {
+  border-left: 4px solid #fd7e14;
+}
+
+.clickable-field[type="url"]:hover {
+  border-left-color: #e55a00;
+  background: linear-gradient(90deg, rgba(253, 126, 20, 0.05) 0%, transparent 100%);
+}
+
+/* Indicador visual de que el campo es clickeable */
+.clickable-field::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #6c757d;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.clickable-field:hover::after {
+  opacity: 1;
+}
+
+.clickable-field[type="tel"]::after {
+  border-top-color: #28a745;
+}
+
+.clickable-field[type="email"]::after {
+  border-top-color: #007bff;
+}
+
+.clickable-field[type="url"]::after {
+  border-top-color: #fd7e14;
+}
+
+/* Estilos para valores clickeables en modo visualización */
+.clickable-value {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  display: inline-block;
+  position: relative;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.clickable-value:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.clickable-value:active {
+  transform: translateY(0);
+}
+
+/* Estilos específicos para cada tipo de valor */
+.phone-value {
+  color: #28a745;
+  background: rgba(40, 167, 69, 0.1);
+  border: 1px solid rgba(40, 167, 69, 0.2);
+}
+
+.phone-value:hover {
+  background: rgba(40, 167, 69, 0.2);
+  border-color: #28a745;
+}
+
+.phone-value::before {
+  content: '📞 ';
+  margin-right: 4px;
+}
+
+.email-value {
+  color: #007bff;
+  background: rgba(0, 123, 255, 0.1);
+  border: 1px solid rgba(0, 123, 255, 0.2);
+}
+
+.email-value:hover {
+  background: rgba(0, 123, 255, 0.2);
+  border-color: #007bff;
+}
+
+.email-value::before {
+  content: '📧 ';
+  margin-right: 4px;
+}
+
+.link-value {
+  color: #fd7e14;
+  background: rgba(253, 126, 20, 0.1);
+  border: 1px solid rgba(253, 126, 20, 0.2);
+  word-break: normal;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  width: 100%;
+  height: auto;
+  line-height: 1.4;
+}
+
+.link-value:hover {
+  background: rgba(253, 126, 20, 0.2);
+  border-color: #fd7e14;
+  white-space: normal;
+  word-break: break-all;
+  overflow: visible;
+  position: absolute;
+  z-index: 1000;
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 8px;
+  margin: -4px;
+}
+
+.link-value::before {
+  content: '🔗 ';
+  margin-right: 4px;
+}
+
+/* Indicador de que es clickeable */
+.clickable-value::after {
+  content: '↗';
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.8em;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.clickable-value:hover::after {
+  opacity: 1;
+}
+
+/* Estilos para tabla con scroll horizontal */
+.table-scrollable {
+  min-width: 100%;
+  white-space: nowrap;
+  table-layout: fixed;
+}
+
+.table-scrollable th,
+.table-scrollable td {
+  white-space: nowrap;
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 12px 8px;
+  vertical-align: middle;
+  height: auto;
+  max-height: 60px;
+  line-height: 1.4;
+}
+
+/* Campos específicos con ancho fijo */
+.table-scrollable th:first-child,
+.table-scrollable td:first-child {
+  width: 120px; /* Nombre - más pequeño */
+  min-width: 120px;
+  max-width: 120px;
+}
+
+.table-scrollable th:nth-child(2),
+.table-scrollable td:nth-child(2) {
+  width: 180px; /* Título - un poco más ancho */
+  min-width: 180px;
+  max-width: 180px;
+}
+
+.table-scrollable th:nth-child(3),
+.table-scrollable td:nth-child(3) {
+  width: 120px; /* Fecha - más pequeño */
+  min-width: 120px;
+  max-width: 120px;
+}
+
+.table-scrollable th:last-child,
+.table-scrollable td:last-child {
+  width: 150px; /* Acciones - más ancho para todos los botones */
+  min-width: 150px;
+  max-width: 150px;
+}
+
+/* Campos de texto largo */
+.table-scrollable .long-text {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  width: 100%;
+}
+
+/* Campos de enlace con scroll interno */
+.table-scrollable .link-value {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  width: 100%;
+}
+
+.table-scrollable .link-value:hover {
+  white-space: normal;
+  word-break: break-all;
+  overflow: visible;
+  position: relative;
+  z-index: 10;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  padding: 8px;
+  margin: -8px;
+  min-width: 200px;
+}
+
+/* Contenedor de tabla con scroll */
+.table-responsive {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 100%;
+  width: 100%;
+}
+
+.table-responsive::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background: #1b6659;
+  border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background: #2d8a7a;
+}
+
 /* Estilos para campos de archivo en la tabla */
 .table .file-upload-container {
   min-width: 200px;
+}
+
+/* Estilos para textarea en la tabla */
+.table-scrollable .textarea-preview {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  width: 100%;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  color: #495057;
+}
+
+.table-scrollable .textarea-preview:hover {
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+  position: relative;
+  z-index: 10;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  padding: 8px;
+  margin: -8px;
+  min-width: 200px;
+  max-width: 300px;
+}
+
+/* Estilos para textarea en el modal de vista */
+.textarea-content {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.textarea-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #495057;
 }
 
 .table .file-upload-component {
@@ -3834,5 +4575,174 @@ export default {
   background: #5a6268;
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+}
+
+/* Estilos para el modal de vista de registro */
+.view-record-modal {
+  padding: 20px 0;
+}
+
+.record-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #f8f9fa;
+}
+
+.record-title {
+  color: #2c3e50;
+  margin: 0;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.record-title i {
+  color: #1b6659;
+  font-size: 1.2em;
+}
+
+.record-id {
+  background: #f8f9fa;
+  color: #6c757d;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.record-content {
+  margin-bottom: 30px;
+}
+
+.fields-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.field-item {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.field-item:hover {
+  background: #e9ecef;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.field-label {
+  font-weight: 600;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6c757d;
+}
+
+.field-label i {
+  color: #1b6659;
+  font-size: 1rem;
+}
+
+.field-value {
+  color: #2c3e50;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  word-break: break-word;
+  padding: 8px 0;
+}
+
+/* Estilos específicos para tipos de campos */
+.field-value-telefono .clickable-value,
+.field-value-correo .clickable-value,
+.field-value-enlace .clickable-value {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin: 2px 0;
+}
+
+.field-value-fecha .date-value {
+  color: #007bff;
+  font-weight: 500;
+}
+
+.field-value-numero .number-value {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.field-value-select .select-value {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.field-value-archivo .file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-value-archivo .file-item {
+  background: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.field-value-archivo .file-item i {
+  color: #6c757d;
+}
+
+.record-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding-top: 20px;
+  border-top: 2px solid #f8f9fa;
+}
+
+/* Responsive para el modal */
+@media (max-width: 768px) {
+  .record-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .field-item {
+    padding: 15px;
+  }
+  
+  .field-value {
+    font-size: 1rem;
+  }
+  
+  .record-footer {
+    flex-direction: column;
+  }
 }
 </style> 

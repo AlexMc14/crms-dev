@@ -2,7 +2,7 @@
   <footer class="footer">
     <div class="container-fluid d-flex flex-wrap justify-content-center align-items-center">
       <div class="footer-brand">
-        <img src="/favicon.svg" alt="CRMS Logo" class="footer-logo">
+        <img :src="logoUrl" alt="CRMS Logo" class="footer-logo">
         <span class="footer-text">CRMS</span>
         <span class="trademark">®</span>
         <span class="year">{{ currentYear }}</span>
@@ -15,6 +15,11 @@
 </template>
 <script>
 export default {
+  data() {
+    return {
+      logoUrl: require('@/assets/img/crms.svg')
+    }
+  },
   computed: {
     currentYear() {
       return new Date().getFullYear();

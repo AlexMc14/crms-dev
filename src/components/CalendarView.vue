@@ -126,9 +126,9 @@
         </div>
 
         <div class="event-actions">
-          <button class="btn-edit" @click="editEvent(selectedEvent)">
+          <!-- <button class="btn-edit" @click="editEvent(selectedEvent)">
             <i class="ti-pencil"></i> Editar
-          </button>
+          </button> -->
           <button class="btn-delete" @click="deleteEvent(selectedEvent)">
             <i class="ti-trash"></i> Eliminar
           </button>
@@ -144,57 +144,128 @@
       hide-footer
     >
       <div class="event-form">
-        <div class="form-group">
-          <label>Título del evento</label>
-          <input 
-            type="text" 
-            class="form-control" 
-            v-model="eventForm.title"
-            placeholder="Ingrese el título del evento"
+        <div class="form-group" v-for="columna in getAvailableColumns()" :key="columna.nombre">
+          <label :for="`modal-${columna.nombre}`" class="form-label">
+            {{ formatFieldName(columna.nombre) }}
+          </label>
+          
+          <!-- Input de texto -->
+          <input
+            v-if="columna.tipo === 'texto' || columna.tipo === 'email'"
+            :id="`modal-${columna.nombre}`"
+            type="text"
+            class="form-control"
+            v-model="eventForm.data[columna.nombre]"
+            :placeholder="'Ingrese ' + formatFieldName(columna.nombre)"
           >
-        </div>
-        
-        <div class="form-group">
-          <label>Fecha</label>
-          <input 
-            type="date" 
-            class="form-control" 
-            v-model="eventForm.date"
+          
+          <!-- Input de fecha -->
+          <input
+            v-else-if="columna.tipo === 'fecha'"
+            :id="`modal-${columna.nombre}`"
+            type="date"
+            class="form-control"
+            v-model="eventForm.data[columna.nombre]"
           >
-        </div>
-
-        <div class="form-group">
-          <label>Hora</label>
-          <input 
-            type="time" 
-            class="form-control" 
-            v-model="eventForm.time"
+          
+          <!-- Input de teléfono -->
+          <input
+            v-else-if="columna.tipo === 'telefono'"
+            :id="`modal-${columna.nombre}`"
+            type="tel"
+            class="form-control"
+            v-model="eventForm.data[columna.nombre]"
+            :placeholder="'Ingrese ' + formatFieldName(columna.nombre)"
           >
-        </div>
-
-        <div class="form-group">
-          <label>Color</label>
-          <select class="form-control" v-model="eventForm.color">
-            <option value="#007bff">Azul</option>
-            <option value="#28a745">Verde</option>
-            <option value="#ffc107">Amarillo</option>
-            <option value="#dc3545">Rojo</option>
-            <option value="#6f42c1">Púrpura</option>
-            <option value="#fd7e14">Naranja</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Datos adicionales</label>
-          <div v-for="(field, key) in availableFields" :key="`field-${key}`" class="field-input">
-            <label>{{ formatFieldName(key) }}</label>
-            <input 
-              type="text" 
-              class="form-control" 
-              v-model="eventForm.data[key]"
-              :placeholder="'Ingrese ' + formatFieldName(key)"
+          
+          <!-- Input de correo -->
+          <input
+            v-else-if="columna.tipo === 'correo'"
+            :id="`modal-${columna.nombre}`"
+            type="email"
+            class="form-control"
+            v-model="eventForm.data[columna.nombre]"
+            :placeholder="'Ingrese ' + formatFieldName(columna.nombre)"
+          >
+          
+          <!-- Input de enlace -->
+          <input
+            v-else-if="columna.tipo === 'enlace'"
+            :id="`modal-${columna.nombre}`"
+            type="url"
+            class="form-control"
+            v-model="eventForm.data[columna.nombre]"
+            :placeholder="'Ingrese ' + formatFieldName(columna.nombre)"
+          >
+          
+          <!-- Textarea -->
+          <textarea
+            v-else-if="columna.tipo === 'textarea'"
+            :id="`modal-${columna.nombre}`"
+            class="form-control"
+            v-model="eventForm.data[columna.nombre]"
+            :placeholder="'Ingrese ' + formatFieldName(columna.nombre)"
+            rows="3"
+            style="resize: vertical; min-height: 60px;"
+          ></textarea>
+          
+          <!-- Select -->
+          <select
+            v-else-if="columna.tipo === 'select'"
+            :id="`modal-${columna.nombre}`"
+            class="form-control"
+            v-model="eventForm.data[columna.nombre]"
+          >
+            <option value="">Selecciona una opción</option>
+            <option 
+              v-for="opcion in columna.opciones" 
+              :key="opcion" 
+              :value="opcion"
             >
+              {{ opcion }}
+            </option>
+          </select>
+          
+          <!-- Input numérico -->
+          <input
+            v-else-if="columna.tipo === 'numero'"
+            :id="`modal-${columna.nombre}`"
+            type="number"
+            class="form-control"
+            v-model="eventForm.data[columna.nombre]"
+            :placeholder="'Ingrese ' + formatFieldName(columna.nombre)"
+          >
+          
+          <!-- Campo de archivo -->
+          <div v-else-if="columna.tipo === 'archivo'" class="file-upload-container">
+            <input
+              type="file"
+              class="form-control"
+              multiple
+              @change="handleFileUpload($event, columna.nombre)"
+            >
+            <small class="text-muted">Selecciona archivos para subir</small>
           </div>
+          
+          <!-- Campo relacional -->
+          <input
+            v-else-if="columna.tipo === 'relacional'"
+            :id="`modal-${columna.nombre}`"
+            type="text"
+            class="form-control"
+            v-model="eventForm.data[columna.nombre]"
+            :placeholder="'Buscar en ' + columna.seccionRelacionada"
+          >
+          
+          <!-- Campo por defecto (texto) -->
+          <input
+            v-else
+            :id="`modal-${columna.nombre}`"
+            type="text"
+            class="form-control"
+            v-model="eventForm.data[columna.nombre]"
+            :placeholder="'Ingrese ' + formatFieldName(columna.nombre)"
+          >
         </div>
 
         <div class="form-actions">
@@ -248,10 +319,6 @@ export default {
       selectedEvent: null,
       editingEvent: null,
       eventForm: {
-        title: '',
-        date: '',
-        time: '',
-        color: '#007bff',
         data: {}
       },
       weekDays: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
@@ -307,10 +374,28 @@ export default {
     },
     selectDay(day) {
       console.log('🔍 selectDay - Day:', day.date)
-      this.eventForm.date = this.formatDateForInput(day.date)
-      this.eventForm.time = ''
-      this.eventForm.title = ''
+      
+      // Inicializar todos los campos disponibles con valores vacíos
       this.eventForm.data = {}
+      this.getAvailableColumns().forEach(columna => {
+        const nombreCampo = typeof columna === 'string' ? columna : columna.nombre
+        const tipoCampo = typeof columna === 'string' ? 'texto' : columna.tipo
+        
+        // Si es el campo de fecha, usar la fecha seleccionada
+        if (nombreCampo === this.dateField) {
+          this.eventForm.data[nombreCampo] = this.formatDateForInput(day.date)
+        } else {
+          // Inicializar según el tipo de campo
+          if (tipoCampo === 'archivo') {
+            this.eventForm.data[nombreCampo] = []
+          } else if (tipoCampo === 'numero') {
+            this.eventForm.data[nombreCampo] = null
+          } else {
+            this.eventForm.data[nombreCampo] = ''
+          }
+        }
+      })
+      
       this.editingEvent = null
       this.showEventForm = true
     },
@@ -363,12 +448,25 @@ export default {
     },
     editEvent(event) {
       this.editingEvent = event
+      
+      // Inicializar todos los campos disponibles
+      const data = {}
+      this.getAvailableColumns().forEach(columna => {
+        const nombreCampo = typeof columna === 'string' ? columna : columna.nombre
+        const tipoCampo = typeof columna === 'string' ? 'texto' : columna.tipo
+        
+        // Inicializar según el tipo de campo
+        if (tipoCampo === 'archivo') {
+          data[nombreCampo] = event.data && event.data[nombreCampo] ? event.data[nombreCampo] : []
+        } else if (tipoCampo === 'numero') {
+          data[nombreCampo] = event.data && event.data[nombreCampo] ? event.data[nombreCampo] : null
+        } else {
+          data[nombreCampo] = event.data && event.data[nombreCampo] ? event.data[nombreCampo] : ''
+        }
+      })
+      
       this.eventForm = {
-        title: event.title || '',
-        date: this.formatDateForInput(new Date(event.date)),
-        time: this.formatTimeForInput(new Date(event.date)),
-        color: event.color || '#007bff',
-        data: { ...event.data }
+        data
       }
       this.showEventModal = false
       this.showEventForm = true
@@ -380,17 +478,23 @@ export default {
       }
     },
     saveEvent() {
-      if (!this.eventForm.title || !this.eventForm.date) {
-        alert('Por favor completa los campos requeridos')
+      // Validar que al menos haya algún campo con valor
+      const hasValues = Object.values(this.eventForm.data).some(value => 
+        value !== '' && value !== null && value !== undefined && 
+        (Array.isArray(value) ? value.length > 0 : true)
+      )
+      
+      if (!hasValues) {
+        alert('Por favor completa al menos un campo')
         return
       }
 
+      // Construir el objeto de datos con todos los campos
       const eventData = {
-        title: this.eventForm.title,
-        date: this.combineDateTime(this.eventForm.date, this.eventForm.time),
-        color: this.eventForm.color,
-        data: this.eventForm.data
+        data: { ...this.eventForm.data }
       }
+
+      console.log('💾 Guardando evento:', eventData)
 
       if (this.editingEvent) {
         this.$emit('update-event', { ...this.editingEvent, ...eventData })
@@ -403,12 +507,25 @@ export default {
     cancelEventForm() {
       this.showEventForm = false
       this.editingEvent = null
+      
+      // Inicializar todos los campos disponibles con valores vacíos
+      const data = {}
+      this.getAvailableColumns().forEach(columna => {
+        const nombreCampo = typeof columna === 'string' ? columna : columna.nombre
+        const tipoCampo = typeof columna === 'string' ? 'texto' : columna.tipo
+        
+        // Inicializar según el tipo de campo
+        if (tipoCampo === 'archivo') {
+          data[nombreCampo] = []
+        } else if (tipoCampo === 'numero') {
+          data[nombreCampo] = null
+        } else {
+          data[nombreCampo] = ''
+        }
+      })
+      
       this.eventForm = {
-        title: '',
-        date: '',
-        time: '',
-        color: '#007bff',
-        data: {}
+        data
       }
     },
     formatDateForInput(date) {
@@ -445,7 +562,36 @@ export default {
         minute: '2-digit'
       })
     },
+    getAvailableFieldNames() {
+      if (!this.availableFields) return []
+      
+      if (Array.isArray(this.availableFields)) {
+        return this.availableFields
+      } else if (typeof this.availableFields === 'object') {
+        return Object.keys(this.availableFields)
+      }
+      
+      return []
+    },
+    getAvailableColumns() {
+      if (!this.columns || !Array.isArray(this.columns)) return []
+      
+      // Mostrar TODAS las columnas, igual que en la tabla
+      return this.columns
+    },
+    handleFileUpload(event, fieldName) {
+      const files = Array.from(event.target.files)
+      if (files.length > 0) {
+        // Por ahora, solo guardamos los nombres de los archivos
+        // En una implementación completa, aquí se subirían los archivos
+        this.eventForm.data[fieldName] = files.map(file => file.name)
+      }
+    },
     formatFieldName(key) {
+      if (typeof key !== 'string') {
+        console.warn('formatFieldName recibió un valor que no es string:', key)
+        return String(key)
+      }
       return key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')
     },
     formatFieldValue(value, key) {

@@ -2317,17 +2317,49 @@ export default {
       if (!seccionActual.value) return
       
       try {
+        // Construir el objeto de valores con todos los campos de la sección
+        const valores = {}
+        
+        // Inicializar todos los campos de la sección
+        seccionActual.value.columnas.forEach(col => {
+          const nombreCampo = typeof col === 'string' ? col : col.nombre
+          const tipoCampo = typeof col === 'string' ? 'texto' : col.tipo
+          
+          // Para campos de archivo, usar array vacío
+          if (tipoCampo === 'archivo') {
+            valores[nombreCampo] = []
+          } else {
+            valores[nombreCampo] = ''
+          }
+        })
+        
+        // Asignar los valores del formulario del calendario
+        if (eventData.data) {
+          Object.assign(valores, eventData.data)
+        }
+        
+        console.log('📅 Creando registro desde calendario:', valores)
+        
         const res = await seccionesDinamicasService.createRegistro(
           seccionActual.value._id || seccionActual.value.id,
-          { valores: eventData }
+          { valores }
         )
         
+        // Actualizar datos locales
         if (seccionActual.value.datos && Array.isArray(seccionActual.value.datos)) {
           seccionActual.value.datos.push(res)
         } else {
           seccionActual.value.datos = [res]
         }
+        
+        // Recargar registros paginados
+        await cargarRegistrosPaginados()
+        
+        // Recargar datos del calendario manteniendo el mes actual
+        loadCalendarData(currentCalendarMonth.value.getFullYear(), currentCalendarMonth.value.getMonth() + 1)
+        
       } catch (e) {
+        console.error('Error al agregar evento:', e)
         alert('Error al agregar evento')
       }
     }
@@ -2336,18 +2368,43 @@ export default {
       if (!seccionActual.value) return
       
       try {
+        // Construir el objeto de valores con todos los campos de la sección
+        const valores = {}
+        
+        // Inicializar todos los campos de la sección
+        seccionActual.value.columnas.forEach(col => {
+          const nombreCampo = typeof col === 'string' ? col : col.nombre
+          const tipoCampo = typeof col === 'string' ? 'texto' : col.tipo
+          
+          // Para campos de archivo, usar array vacío
+          if (tipoCampo === 'archivo') {
+            valores[nombreCampo] = []
+          } else {
+            valores[nombreCampo] = ''
+          }
+        })
+        
+        // Asignar los valores del formulario del calendario
+        if (eventData.data) {
+          Object.assign(valores, eventData.data)
+        }
+        
+        console.log('📅 Actualizando registro desde calendario:', valores)
+        
         await seccionesDinamicasService.updateRegistro(
           seccionActual.value._id || seccionActual.value.id,
           eventData.id,
-          { valores: eventData.data }
+          { valores }
         )
         
-        // Actualizar el registro en el array local
-        const index = seccionActual.value.datos.findIndex(r => r._id === eventData.id)
-        if (index !== -1) {
-          seccionActual.value.datos[index].valores = eventData.data
-        }
+        // Recargar registros paginados
+        await cargarRegistrosPaginados()
+        
+        // Recargar datos del calendario manteniendo el mes actual
+        loadCalendarData(currentCalendarMonth.value.getFullYear(), currentCalendarMonth.value.getMonth() + 1)
+        
       } catch (e) {
+        console.error('Error al actualizar evento:', e)
         alert('Error al actualizar evento')
       }
     }
@@ -2361,12 +2418,16 @@ export default {
           eventData.id
         )
         
-        // Eliminar el registro del array local
-        const index = seccionActual.value.datos.findIndex(r => r._id === eventData.id)
-        if (index !== -1) {
-          seccionActual.value.datos.splice(index, 1)
-        }
+        // Recargar registros paginados
+        await cargarRegistrosPaginados()
+        
+        // Recargar datos del calendario manteniendo el mes actual
+        loadCalendarData(currentCalendarMonth.value.getFullYear(), currentCalendarMonth.value.getMonth() + 1)
+        
+        console.log('🗑️ Evento eliminado desde calendario')
+        
       } catch (e) {
+        console.error('Error al eliminar evento:', e)
         alert('Error al eliminar evento')
       }
     }

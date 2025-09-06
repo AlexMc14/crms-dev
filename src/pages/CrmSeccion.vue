@@ -45,7 +45,7 @@
     <div v-if="cargando" class="text-center">Cargando...</div>
     <div v-else-if="seccionActual" class="main-content">
       <!-- Gestión de campos para esta sección -->
-      <div class="table-section">
+      <div v-if="false" class="table-section">
         <div class="table-header">
           <h2>Gestión de Campos</h2>
           <div class="header-actions">
@@ -663,6 +663,39 @@
               <option value="#fd7e14">Naranja</option>
             </select>
           </div>
+
+          <div class="form-group">
+            <label>Campo para colores dinámicos (opcional):</label>
+            <select class="form-control" v-model="colorFieldName">
+              <option value="">Sin colores dinámicos</option>
+              <option v-for="columna in selectFields" :key="columna.nombre" :value="columna.nombre">
+                {{ columna.nombre }} ({{ columna.opciones ? columna.opciones.length : 0 }} opciones)
+              </option>
+            </select>
+            <small class="text-muted">Si seleccionas un campo select, los eventos se colorearán automáticamente según su valor</small>
+          </div>
+
+          <div v-if="colorFieldName && selectedColorField" class="form-group">
+            <label>Configuración de colores para "{{ colorFieldName }}":</label>
+            <div class="color-mapping">
+              <div v-for="opcion in selectedColorField.opciones" :key="opcion" class="color-option">
+                <label class="color-label">{{ opcion }}:</label>
+                <select class="form-control color-select" v-model="colorMapping[opcion]">
+                  <option value="#007bff">Azul</option>
+                  <option value="#28a745">Verde</option>
+                  <option value="#ffc107">Amarillo</option>
+                  <option value="#dc3545">Rojo</option>
+                  <option value="#6f42c1">Púrpura</option>
+                  <option value="#fd7e14">Naranja</option>
+                  <option value="#20c997">Verde agua</option>
+                  <option value="#6c757d">Gris</option>
+                  <option value="#e83e8c">Rosa</option>
+                  <option value="#17a2b8">Azul claro</option>
+                </select>
+                <div class="color-preview" :style="{ backgroundColor: colorMapping[opcion] || '#007bff' }"></div>
+              </div>
+            </div>
+          </div>
         </div>
 
                   <div class="setting-actions">
@@ -885,12 +918,12 @@
       hide-footer
     >
       <div class="view-record-modal" v-if="registroSeleccionado">
-        <div class="record-header">
+        <!-- <div class="record-header">
           <h4 class="record-title">
             <i class="ti-database"></i>
             Registro de {{ seccionActual ? seccionActual.nombre : 'Sección' }}
           </h4>
-        </div>
+        </div> -->
         
         <div class="record-content">
           <div class="fields-grid">
@@ -1209,6 +1242,10 @@ export default {
     const selectedCalendar = ref(null)
     const calendarData = ref([])
     
+    // Variables para colores dinámicos
+    const colorFieldName = ref('')
+    const colorMapping = reactive({})
+    
     // Variables para el buscador de campos relacionales
     const opcionesVisibles = reactive({})
     const opcionesFiltradas = reactive({})
@@ -1333,6 +1370,22 @@ export default {
       }).map(col => typeof col === 'string' ? { nombre: col } : col)
     })
 
+    const selectFields = computed(() => {
+      if (!seccionActual.value || !seccionActual.value.columnas) return []
+      return seccionActual.value.columnas.filter(col => {
+        const columna = typeof col === 'string' ? { nombre: col, tipo: 'texto' } : col
+        return columna.tipo === 'select' && columna.opciones && columna.opciones.length > 0
+      }).map(col => typeof col === 'string' ? { nombre: col } : col)
+    })
+
+    const selectedColorField = computed(() => {
+      if (!colorFieldName.value || !seccionActual.value || !seccionActual.value.columnas) return null
+      return seccionActual.value.columnas.find(col => {
+        const columna = typeof col === 'string' ? { nombre: col, tipo: 'texto' } : col
+        return columna.nombre === colorFieldName.value && columna.tipo === 'select'
+      })
+    })
+
     const calendarEvents = computed(() => {
       console.log('=== DEBUG CALENDAR ===')
       console.log('Calendario habilitado:', calendarEnabled.value)
@@ -1403,11 +1456,22 @@ export default {
             return null
           }
           
+          // Determinar el color del evento
+          let finalEventColor = eventColor
+          
+          // Si hay un campo de color configurado, usar el mapeo de colores
+          if (colorFieldName.value && colorMapping && Object.keys(colorMapping).length > 0) {
+            const colorValue = eventData[colorFieldName.value]
+            if (colorValue && colorMapping[colorValue]) {
+              finalEventColor = colorMapping[colorValue]
+            }
+          }
+          
           const event = {
             id: registro._id || registro.id,
             title: displayTitle,
             date: eventDate,
-            color: eventColor,
+            color: finalEventColor,
             data: eventData,
             registro: registro // Preservar el registro completo
           }
@@ -2242,6 +2306,8 @@ export default {
       titleFieldName.value = calendar.titleField
       defaultEventColor.value = calendar.defaultColor
       selectedDisplayFields.value = calendar.displayFields || []
+      colorFieldName.value = calendar.colorField || ''
+      Object.assign(colorMapping, calendar.colorMapping || {})
       
       // Cargar datos del calendario seleccionado
       const now = new Date()
@@ -2258,6 +2324,8 @@ export default {
       titleFieldName.value = calendar.titleField
       defaultEventColor.value = calendar.defaultColor
       selectedDisplayFields.value = calendar.displayFields || []
+      colorFieldName.value = calendar.colorField || ''
+      Object.assign(colorMapping, calendar.colorMapping || {})
     }
 
     const createNewCalendar = () => {
@@ -2270,6 +2338,8 @@ export default {
       titleFieldName.value = ''
       defaultEventColor.value = '#007bff'
       selectedDisplayFields.value = []
+      colorFieldName.value = ''
+      Object.keys(colorMapping).forEach(key => delete colorMapping[key])
     }
 
     const initializeCalendarFields = () => {
@@ -2291,12 +2361,16 @@ export default {
         titleFieldName.value = savedConfig.titleField || ''
         defaultEventColor.value = savedConfig.defaultColor || '#007bff'
         selectedDisplayFields.value = savedConfig.displayFields || []
+        colorFieldName.value = savedConfig.colorField || ''
+        Object.assign(colorMapping, savedConfig.colorMapping || {})
         console.log('✅ Configuración cargada:', {
           enabled: calendarEnabled.value,
           title: calendarTitle.value,
           dateField: dateFieldName.value,
           titleField: titleFieldName.value,
-          displayFields: selectedDisplayFields.value
+          displayFields: selectedDisplayFields.value,
+          colorField: colorFieldName.value,
+          colorMapping: colorMapping
         })
         
         // Cargar datos del calendario si está habilitado
@@ -2336,6 +2410,7 @@ export default {
       console.log('- Habilitado:', calendarEnabled.value)
       console.log('- Campo fecha:', dateFieldName.value)
       console.log('- Campo título:', titleFieldName.value)
+      console.log('- Campo color:', colorFieldName.value)
     }
 
     const toggleCalendar = () => {
@@ -2345,6 +2420,8 @@ export default {
         calendarTitle.value = ''
         selectedDisplayFields.value = []
         defaultEventColor.value = '#007bff'
+        colorFieldName.value = ''
+        Object.keys(colorMapping).forEach(key => delete colorMapping[key])
       } else {
         // Cargar datos del mes actual cuando se habilita el calendario
         const now = new Date()
@@ -2409,7 +2486,9 @@ export default {
           dateField: dateFieldName.value,
           titleField: titleFieldName.value,
           defaultColor: defaultEventColor.value,
-          displayFields: selectedDisplayFields.value
+          displayFields: selectedDisplayFields.value,
+          colorField: colorFieldName.value,
+          colorMapping: { ...colorMapping }
         }
         
         // Enviar al servidor
@@ -2423,7 +2502,9 @@ export default {
           dateField: dateFieldName.value,
           titleField: titleFieldName.value,
           defaultColor: defaultEventColor.value,
-          displayFields: selectedDisplayFields.value
+          displayFields: selectedDisplayFields.value,
+          colorField: colorFieldName.value,
+          colorMapping: { ...colorMapping }
         }
       )
         
@@ -2513,6 +2594,8 @@ export default {
       selectedDisplayFields.value = []
       selectedCalendar.value = null
       calendarConfigs.value = []
+      colorFieldName.value = ''
+      Object.keys(colorMapping).forEach(key => delete colorMapping[key])
       currentView.value = 'table' // Volver a la vista de tabla por defecto
     }
 
@@ -2547,6 +2630,8 @@ export default {
           titleFieldName.value = firstEnabled.titleField
           defaultEventColor.value = firstEnabled.defaultColor
           selectedDisplayFields.value = firstEnabled.displayFields || []
+          colorFieldName.value = firstEnabled.colorField || ''
+          Object.assign(colorMapping, firstEnabled.colorMapping || {})
           
           // Cargar datos del calendario
           const now = new Date()
@@ -2583,6 +2668,24 @@ export default {
     watch(showCalendarSettings, (isOpen) => {
       if (isOpen) {
         initializeCalendarFields()
+      }
+    })
+
+    // Watcher para inicializar colores cuando se selecciona un campo de color
+    watch(colorFieldName, (newColorField) => {
+      if (newColorField && selectedColorField.value) {
+        // Inicializar colores por defecto para las opciones del campo select
+        selectedColorField.value.opciones.forEach(opcion => {
+          if (!colorMapping[opcion]) {
+            // Asignar colores por defecto de forma rotativa
+            const defaultColors = [
+              '#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', 
+              '#fd7e14', '#20c997', '#6c757d', '#e83e8c', '#17a2b8'
+            ]
+            const colorIndex = Object.keys(colorMapping).length % defaultColors.length
+            colorMapping[opcion] = defaultColors[colorIndex]
+          }
+        })
       }
     })
 
@@ -2710,6 +2813,11 @@ export default {
       hacerLlamada,
       abrirCorreo,
       abrirEnlace,
+      // Variables para colores dinámicos
+      colorFieldName,
+      colorMapping,
+      selectFields,
+      selectedColorField,
     }
   }
 }
@@ -3803,6 +3911,55 @@ export default {
   to { transform: rotate(360deg); }
 }
 
+/* Estilos para configuración de colores dinámicos */
+.color-mapping {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.color-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.color-option:last-child {
+  margin-bottom: 0;
+}
+
+.color-label {
+  font-weight: 600;
+  color: #495057;
+  min-width: 80px;
+  margin: 0;
+}
+
+.color-select {
+  flex: 1;
+  max-width: 150px;
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.color-preview {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid #dee2e6;
+  flex-shrink: 0;
+}
+
 /* Responsive para el modal */
 @media (max-width: 768px) {
   .field-details {
@@ -3847,6 +4004,20 @@ export default {
   .btn-config, .btn-calendar, .btn-calendar-config, .btn-calendar-create {
     width: 100%;
     justify-content: center;
+  }
+  
+  .color-option {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .color-label {
+    min-width: auto;
+  }
+  
+  .color-select {
+    max-width: none;
   }
 }
 
@@ -4222,6 +4393,28 @@ export default {
   transform: translateY(0);
 }
 
+/* Estilos específicos para campos clickeables en el modal de detalles */
+.view-record-modal .clickable-value {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  margin: 2px 0;
+  display: inline-block;
+  width: auto;
+  min-width: 120px;
+  text-align: center;
+}
+
+.view-record-modal .clickable-value:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.view-record-modal .clickable-value:active {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
 /* Estilos específicos para cada tipo de valor */
 .phone-value {
   color: #28a745;
@@ -4289,6 +4482,56 @@ export default {
 .link-value::before {
   content: '🔗 ';
   margin-right: 4px;
+}
+
+/* Estilos específicos para campos clickeables en el modal de detalles */
+.view-record-modal .phone-value {
+  background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.2) 100%);
+  border: 2px solid rgba(40, 167, 69, 0.3);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.view-record-modal .phone-value:hover {
+  background: linear-gradient(135deg, rgba(40, 167, 69, 0.2) 0%, rgba(40, 167, 69, 0.3) 100%);
+  border-color: #28a745;
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.view-record-modal .email-value {
+  background: linear-gradient(135deg, rgba(0, 123, 255, 0.1) 0%, rgba(0, 123, 255, 0.2) 100%);
+  border: 2px solid rgba(0, 123, 255, 0.3);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.view-record-modal .email-value:hover {
+  background: linear-gradient(135deg, rgba(0, 123, 255, 0.2) 0%, rgba(0, 123, 255, 0.3) 100%);
+  border-color: #007bff;
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+}
+
+.view-record-modal .link-value {
+  background: linear-gradient(135deg, rgba(253, 126, 20, 0.1) 0%, rgba(253, 126, 20, 0.2) 100%);
+  border: 2px solid rgba(253, 126, 20, 0.3);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.view-record-modal .link-value:hover {
+  background: linear-gradient(135deg, rgba(253, 126, 20, 0.2) 0%, rgba(253, 126, 20, 0.3) 100%);
+  border-color: #fd7e14;
+  box-shadow: 0 4px 15px rgba(253, 126, 20, 0.3);
+  white-space: normal;
+  word-break: break-all;
+  overflow: visible;
+  position: relative;
+  z-index: 10;
+  min-width: 250px;
+  max-width: 400px;
 }
 
 /* Indicador de que es clickeable */

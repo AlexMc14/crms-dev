@@ -187,7 +187,7 @@ export default {
         // },
         // { path: '/empleados-usuarios', name: 'Empleados/Usuarios', icon: 'ti-user' },
         // { path: '/seguridad-permisos', name: 'Seguridad/Permisos', icon: 'ti-shield' },
-        { path: '/crm-dinamico', name: 'CRM Dinámico', icon: 'ti-settings' },
+        // { path: '/crm-dinamico', name: 'CRM Dinámico', icon: 'ti-settings' },
       ],
       routesWithChildren: [],
       openDropdowns: [],

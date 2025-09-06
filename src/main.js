@@ -23,7 +23,7 @@ import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
 import './registerServiceWorker'
 import GlobalComponents from './plugins/globalComponents';
-import { setTenantId } from './services/api';
+import { setTenantId, checkTenantIdStatus } from './services/api';
 
 Vue.use(BootstrapVue)
 Vue.use(IconsPlugin)
@@ -33,8 +33,16 @@ Vue.use(GlobalComponents);
 // Inicializar tenantId desde localStorage
 const tenantId = localStorage.getItem('tenantId');
 if (tenantId) {
+  console.log('🚀 Inicializando tenant-id desde localStorage:', tenantId);
   setTenantId(tenantId);
+} else {
+  console.warn('⚠️ No se encontró tenant-id en localStorage durante la inicialización');
 }
+
+// Verificar estado del tenant-id después de la inicialización
+setTimeout(() => {
+  checkTenantIdStatus();
+}, 1000);
 
 // Monta la app SIEMPRE, sin lógica condicional
 new Vue({

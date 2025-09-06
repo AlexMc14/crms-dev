@@ -39,7 +39,7 @@
       
       <div class="invoice-footer">
         <!-- <img :src="footerImage" alt="Pie de página" class="footer-image" /> -->
-        <img src="../assets/img/footer.png" alt="Pie de página" class="footer-image" />
+        <img :src="footerImageUrl" alt="Pie de página" class="footer-image" />
       </div>
     </div>
     
@@ -62,6 +62,7 @@ export default {
     return {
       headerImage: '/mnt/data/PARTE SUPERIOR.png',
       footerImage: '/mnt/data/Fondo para escritos sin viabilidad.png',
+      footerImageUrl: require('@/assets/img/footer.png'),
       company: {
         name: '',
         phone: '',

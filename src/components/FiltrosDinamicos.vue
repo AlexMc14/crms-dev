@@ -31,7 +31,7 @@
             
             <!-- Input de texto -->
             <input
-              v-if="campo.tipo === 'texto' || campo.tipo === 'email'"
+              v-if="campo.tipo === 'texto' || campo.tipo === 'correo' || campo.tipo === 'telefono'"
               :id="`filtro-${campo.nombre || campo}`"
               type="text"
               class="form-control"
@@ -39,6 +39,17 @@
               :placeholder="`Filtrar por ${campo.nombre || campo}`"
               @input="aplicarFiltros"
             >
+            
+            <!-- Textarea -->
+            <textarea
+              v-else-if="campo.tipo === 'textarea'"
+              :id="`filtro-${campo.nombre || campo}`"
+              class="form-control"
+              v-model="filtros[campo.nombre || campo]"
+              :placeholder="`Filtrar por ${campo.nombre || campo}`"
+              rows="3"
+              @input="aplicarFiltros"
+            ></textarea>
             
             <!-- Select para campos relacionales -->
             <select

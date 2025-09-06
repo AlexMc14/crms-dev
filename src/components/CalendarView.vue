@@ -306,6 +306,7 @@ export default {
       this.currentDate = new Date()
     },
     selectDay(day) {
+      console.log('🔍 selectDay - Day:', day.date)
       this.eventForm.date = this.formatDateForInput(day.date)
       this.eventForm.time = ''
       this.eventForm.title = ''
@@ -411,7 +412,13 @@ export default {
       }
     },
     formatDateForInput(date) {
-      return date.toISOString().split('T')[0]
+      console.log(date)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const formattedDate = `${year}-${month}-${day}`
+      console.log(formattedDate)
+      return formattedDate
     },
     formatTimeForInput(date) {
       return date.toTimeString().slice(0, 5)

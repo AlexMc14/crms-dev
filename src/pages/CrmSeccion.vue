@@ -170,6 +170,14 @@
             </span>
           </div>
           <div class="header-right">
+            <button 
+              v-if="sortField" 
+              class="btn-clear-sort" 
+              @click="limpiarOrdenamiento"
+              title="Limpiar ordenamiento"
+            >
+              <i class="ti-close"></i> Limpiar Orden
+            </button>
             <button class="btn-add-header" @click="showAddModal = true">
               <i class="ti-plus"></i> Agregar Registro
             </button>
@@ -179,8 +187,24 @@
           <table class="table table-striped table-hover table-scrollable">
             <thead>
               <tr>
-                <th v-for="columna in seccionActual.columnas" :key="columna.nombre || columna" class="text-capitalize">
-                  {{ (columna.nombre || columna).charAt(0).toUpperCase() + (columna.nombre || columna).slice(1) }}
+                <th 
+                  v-for="columna in seccionActual.columnas" 
+                  :key="columna.nombre || columna" 
+                  class="text-capitalize sortable-header"
+                  @click="cambiarOrdenamiento(columna.nombre || columna)"
+                  :class="{ 
+                    'sorting-active': sortField === (columna.nombre || columna),
+                    'sort-asc': sortField === (columna.nombre || columna) && sortDirection === 'asc',
+                    'sort-desc': sortField === (columna.nombre || columna) && sortDirection === 'desc'
+                  }"
+                >
+                  <div class="header-content">
+                    <span>{{ (columna.nombre || columna).charAt(0).toUpperCase() + (columna.nombre || columna).slice(1) }}</span>
+                    <div class="sort-icons">
+                      <i class="ti-angle-up" :class="{ 'active': sortField === (columna.nombre || columna) && sortDirection === 'asc' }"></i>
+                      <i class="ti-angle-down" :class="{ 'active': sortField === (columna.nombre || columna) && sortDirection === 'desc' }"></i>
+                    </div>
+                  </div>
                 </th>
                 <th class="text-center">Acciones</th>
               </tr>
@@ -1266,6 +1290,10 @@ export default {
     // Estado para filtros colapsables
     const filtrosAbiertos = ref(false)
     const filtrosActivos = ref({})
+    
+    // Variables para ordenamiento
+    const sortField = ref(null)
+    const sortDirection = ref('asc') // 'asc' o 'desc'
 
     // Computed para obtener la sección actual
     const seccionActual = computed(() => {
@@ -1590,6 +1618,59 @@ export default {
       console.log('Toggle filtros ejecutado')
       filtrosAbiertos.value = !filtrosAbiertos.value
       console.log('Nuevo estado:', filtrosAbiertos.value)
+    }
+
+    // Método para cambiar el ordenamiento
+    const cambiarOrdenamiento = (campo) => {
+      if (sortField.value === campo) {
+        // Si ya está ordenando por este campo, cambiar dirección
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+      } else {
+        // Si es un campo nuevo, empezar con ascendente
+        sortField.value = campo
+        sortDirection.value = 'asc'
+      }
+      
+      // Aplicar el ordenamiento a los registros
+      aplicarOrdenamiento()
+    }
+
+    // Método para aplicar el ordenamiento
+    const aplicarOrdenamiento = () => {
+      if (!sortField.value || !registros.value) return
+      
+      registros.value.sort((a, b) => {
+        let valorA = getValorCampo(a, sortField.value)
+        let valorB = getValorCampo(b, sortField.value)
+        
+        // Convertir a string para comparación si es necesario
+        if (typeof valorA === 'string') valorA = valorA.toLowerCase()
+        if (typeof valorB === 'string') valorB = valorB.toLowerCase()
+        
+        // Manejar valores nulos/undefined
+        if (valorA == null) valorA = ''
+        if (valorB == null) valorB = ''
+        
+        let resultado = 0
+        if (valorA < valorB) resultado = -1
+        else if (valorA > valorB) resultado = 1
+        
+        return sortDirection.value === 'desc' ? -resultado : resultado
+      })
+    }
+
+    // Método para limpiar el ordenamiento
+    const limpiarOrdenamiento = () => {
+      sortField.value = null
+      sortDirection.value = 'asc'
+      // Recargar los registros sin ordenamiento
+      if (seccionActual.value) {
+        cargarRegistros(seccionActual.value._id || seccionActual.value.id, { 
+          page: pagination.value.currentPage, 
+          limit: pagination.value.itemsPerPage,
+          filters: filtrosActivos.value 
+        })
+      }
     }
 
     // Función para manejar filtros activos
@@ -2798,6 +2879,11 @@ export default {
       filtrosActivos,
       toggleFiltros,
       limpiarFiltros,
+      // Variables y funciones para ordenamiento
+      sortField,
+      sortDirection,
+      cambiarOrdenamiento,
+      limpiarOrdenamiento,
       // Funciones para modal de agregar
       showAddModal,
       agregarFilaDesdeModal,
@@ -3057,6 +3143,83 @@ export default {
   font-weight: 600;
   color: #1b6659;
   padding: 12px 8px;
+}
+
+/* Estilos para headers ordenables */
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.sortable-header:hover {
+  background: #e9ecef !important;
+  color: #2d8a7a !important;
+}
+
+.sortable-header.sorting-active {
+  background: #1b6659 !important;
+  color: white !important;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.sort-icons {
+  display: flex;
+  flex-direction: column;
+  margin-left: 8px;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.sortable-header:hover .sort-icons {
+  opacity: 0.8;
+}
+
+.sortable-header.sorting-active .sort-icons {
+  opacity: 1;
+}
+
+.sort-icons i {
+  font-size: 10px;
+  line-height: 1;
+  margin: 1px 0;
+  transition: color 0.2s ease;
+}
+
+.sort-icons i.active {
+  color: #ffc107;
+}
+
+/* Botón para limpiar ordenamiento */
+.btn-clear-sort {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-clear-sort:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+}
+
+.btn-clear-sort i {
+  font-size: 0.8rem;
 }
 
 .table td {
